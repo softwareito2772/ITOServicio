@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ITO Servicios - Sin conexión</title>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #7C9CBF 0%, #B4C7E7 100%);
+      color: #4A5568;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      max-width: 400px;
+    }
+    h1 { color: #7C9CBF; margin-bottom: 1rem; }
+    p { margin-bottom: 1.5rem; }
+    button {
+      background: #7C9CBF;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:hover { background: #5A7A9E; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Sin conexión</h1>
+    <p>Parece que no tienes conexión a internet. Verifica tu conexión e intenta de nuevo.</p>
+    <button onclick="location.reload()">Reintentar</button>
+  </div>
+</body>
+</html>

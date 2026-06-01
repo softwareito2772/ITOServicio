@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ito-servicios-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ito-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+databases:
+  - name: ito-db
+    plan: free
+    databaseName: ito_servicios
