@@ -4,6 +4,8 @@ from .config import settings
 from .database import engine, Base
 from .routers import auth, users, clients, categories, products, inventory, sales, equipment, maintenance, repairs, warranties, reports, dashboard, arrival_statuses
 
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(
     title=settings.APP_NAME,
     description="API para el sistema de gestión de servicios ITO",
