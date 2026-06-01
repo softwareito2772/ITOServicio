@@ -6,7 +6,7 @@ import { repairsAPI, equipmentAPI, arrivalStatusesAPI, warrantiesAPI } from '@/l
 import { toast } from 'sonner';
 import { formatDate, formatCurrency } from '@/lib/utils';
 
-interface Repair { id: number; equipment: any; arrival_condition: string; arrival_condition_other?: string; diagnosis?: string; solution?: string; parts_used?: string; total_cost: number; service_location: string; start_date: string; end_date?: string; status: string; warranty?: any; images: any[]; created_at: string; }
+interface Repair { id: number; equipment: any; equipment_id?: number; arrival_condition: string; arrival_condition_other?: string; diagnosis?: string; solution?: string; parts_used?: string; total_cost: number; service_location: string; start_date: string; end_date?: string; status: string; warranty?: any; images: any[]; created_at: string; }
 interface Equipment { id: number; client: { name: string }; type_name: string; brand: string; model: string; }
 interface ArrivalStatus { id: number; name: string; description?: string; }
 
