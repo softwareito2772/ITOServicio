@@ -8,7 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from .config import settings
 from .database import get_db
-from .models import User
+from .models import User, Company, CompanyModule
 from .schemas import TokenData
 
 security = HTTPBearer()
@@ -50,12 +50,33 @@ def decode_token(token: str) -> TokenData:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token inválido"
             )
-        return TokenData(user_id=int(user_id_str))
+        return TokenData(
+            user_id=int(user_id_str),
+            company_id=payload.get("company_id"),
+            role=payload.get("role")
+        )
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido"
         )
+
+
+def get_company_data(db: Session, company_id: int):
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        return {}
+    modules = [m.module_name for m in db.query(CompanyModule).filter(
+        CompanyModule.company_id == company_id,
+        CompanyModule.is_enabled == True
+    ).all()]
+    return {
+        "company_name": company.name,
+        "company_logo": company.logo_url,
+        "company_primary_color": company.primary_color,
+        "company_secondary_color": company.secondary_color,
+        "company_modules": modules,
+    }
 
 
 async def get_current_user(
@@ -64,7 +85,7 @@ async def get_current_user(
 ) -> User:
     token = credentials.credentials
     token_data = decode_token(token)
-    
+
     user = db.query(User).filter(User.id == token_data.user_id).first()
     if user is None:
         raise HTTPException(
@@ -80,9 +101,18 @@ async def get_current_user(
 
 
 async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "super_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acceso denegado. Se requiere rol de administrador."
+        )
+    return current_user
+
+
+async def get_current_super_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado. Se requiere rol de super administrador."
         )
     return current_user

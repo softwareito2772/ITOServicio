@@ -22,7 +22,7 @@ async def get_repairs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Repair)
+    query = db.query(Repair).filter(Repair.company_id == current_user.company_id)
     
     if equipment_id:
         query = query.filter(Repair.equipment_id == equipment_id)
@@ -44,6 +44,8 @@ async def get_repair_by_id(
     repair = db.query(Repair).filter(Repair.id == repair_id).first()
     if not repair:
         raise HTTPException(status_code=404, detail="Reparacion no encontrada")
+    if current_user.company_id and repair.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     return repair
 
 
@@ -90,7 +92,8 @@ async def create_repair(
         service_location=service_location,
         start_date=start,
         end_date=end,
-        status=EquipmentStatus(status)
+        status=EquipmentStatus(status),
+        company_id=current_user.company_id
     )
     db.add(db_repair)
     db.flush()
@@ -168,6 +171,8 @@ async def update_repair(
     repair = db.query(Repair).filter(Repair.id == repair_id).first()
     if not repair:
         raise HTTPException(status_code=404, detail="Reparacion no encontrada")
+    if current_user.company_id and repair.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     if equipment_id:
         repair.equipment_id = equipment_id
@@ -249,6 +254,8 @@ async def delete_repair(
     repair = db.query(Repair).filter(Repair.id == repair_id).first()
     if not repair:
         raise HTTPException(status_code=404, detail="Reparacion no encontrada")
+    if current_user.company_id and repair.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     db.delete(repair)
     db.commit()
@@ -267,6 +274,8 @@ async def add_repair_image(
     repair = db.query(Repair).filter(Repair.id == repair_id).first()
     if not repair:
         raise HTTPException(status_code=404, detail="Reparacion no encontrada")
+    if current_user.company_id and repair.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     db_image = RepairImage(
         repair_id=repair_id,

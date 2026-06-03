@@ -22,7 +22,7 @@ async def get_equipment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Equipment)
+    query = db.query(Equipment).filter(Equipment.company_id == current_user.company_id)
     
     if client_id:
         query = query.filter(Equipment.client_id == client_id)
@@ -50,6 +50,8 @@ async def get_equipment_by_id(
     equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipo no encontrado")
+    if current_user.company_id and equipment.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     return equipment
 
 
@@ -63,7 +65,7 @@ async def create_equipment(
     if not client:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     
-    db_equipment = Equipment(**equipment.model_dump())
+    db_equipment = Equipment(**equipment.model_dump(), company_id=current_user.company_id)
     db.add(db_equipment)
     db.commit()
     db.refresh(db_equipment)
@@ -80,6 +82,8 @@ async def update_equipment(
     equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipo no encontrado")
+    if current_user.company_id and equipment.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     for key, value in equipment_update.model_dump(exclude_unset=True).items():
         setattr(equipment, key, value)
@@ -98,6 +102,8 @@ async def delete_equipment(
     equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipo no encontrado")
+    if current_user.company_id and equipment.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     equipment.status = EquipmentStatus.DELIVERED
     db.commit()
@@ -114,7 +120,8 @@ async def get_client_equipment_history(
     from .repairs import get_repair_by_equipment
     
     equipment = db.query(Equipment).filter(
-        Equipment.client_id == client_id
+        Equipment.client_id == client_id,
+        Equipment.company_id == current_user.company_id
     ).all()
     
     result = []

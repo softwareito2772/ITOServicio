@@ -16,7 +16,7 @@ async def get_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Category).filter(Category.is_active == True)
+    query = db.query(Category).filter(Category.is_active == True, Category.company_id == current_user.company_id)
     
     if type:
         query = query.filter(Category.type == type)
@@ -34,6 +34,8 @@ async def get_category(
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    if current_user.company_id and category.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     return category
 
 
@@ -43,7 +45,7 @@ async def create_category(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    db_category = Category(**category.model_dump())
+    db_category = Category(**category.model_dump(), company_id=current_user.company_id)
     db.add(db_category)
     db.commit()
     db.refresh(db_category)
@@ -60,6 +62,8 @@ async def update_category(
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    if current_user.company_id and category.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     for key, value in category_update.model_dump(exclude_unset=True).items():
         setattr(category, key, value)
@@ -78,6 +82,8 @@ async def delete_category(
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    if current_user.company_id and category.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     product_count = db.query(Product).filter(
         Product.category_id == category_id,

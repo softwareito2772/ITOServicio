@@ -21,6 +21,14 @@ export default function LoginPage() {
     return () => clearTimeout(t);
   }, []);
 
+  const getLogo = () => {
+    if (typeof window !== 'undefined') {
+      const company = JSON.parse(localStorage.getItem('company') || 'null');
+      if (company?.logo_url) return company.logo_url;
+    }
+    return '/logo.png';
+  };
+
   if (splash) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 gap-6">
@@ -36,11 +44,32 @@ export default function LoginPage() {
 
     try {
       const response = await authAPI.login(email, password);
-      localStorage.setItem('token', response.data.access_token);
-      
+      const data = response.data;
+
+      localStorage.setItem('token', data.access_token);
+
       const userResponse = await authAPI.getMe();
       localStorage.setItem('user', JSON.stringify(userResponse.data));
-      
+
+      if (data.company_id) {
+        const companyData = {
+          id: data.company_id,
+          name: data.company_name,
+          logo_url: data.company_logo,
+          primary_color: data.company_primary_color,
+          secondary_color: data.company_secondary_color,
+          modules: data.company_modules || [],
+        };
+        localStorage.setItem('company', JSON.stringify(companyData));
+
+        if (companyData.primary_color) {
+          document.documentElement.style.setProperty('--primary', companyData.primary_color);
+        }
+        if (companyData.secondary_color) {
+          document.documentElement.style.setProperty('--secondary', companyData.secondary_color);
+        }
+      }
+
       toast.success('¡Bienvenido!');
       router.push('/dashboard');
     } catch (error: any) {
@@ -61,8 +90,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 p-4">
       <div className="w-full max-w-md animate-fadeIn">
         <div className="text-center mb-8">
-          <Image src="/logo.png" alt="ITO" width={80} height={80} className="mx-auto mb-4 rounded-2xl shadow-lg" />
-          <h1 className="text-2xl font-bold text-gray-800">ITO Servicios</h1>
+          <Image src={getLogo()} alt="Logo" width={80} height={80} className="mx-auto mb-4 rounded-2xl shadow-lg" />
+          <h1 className="text-2xl font-bold text-gray-800">Servicios</h1>
           <p className="text-gray-500 mt-2">Ingresa a tu cuenta</p>
         </div>
 
@@ -114,21 +143,6 @@ export default function LoginPage() {
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-gray-500 text-sm">
-              ¿No tienes cuenta?{' '}
-              <Link href="/register" className="text-primary hover:underline font-medium">
-                Regístrate
-              </Link>
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 text-center">
-          <Link href="/dashboard" className="text-gray-400 hover:text-gray-600 text-sm">
-            Ver dashboard como invitado
-          </Link>
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ from .database import Base
 
 
 class UserRole(str, enum.Enum):
+    SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
     USER = "user"
 
@@ -48,6 +49,41 @@ class InventoryMovementType(str, enum.Enum):
     EXIT = "salida"
 
 
+AVAILABLE_MODULES = [
+    "ventas", "mantenimiento", "reparaciones", "equipos",
+    "productos", "clientes", "garantias", "reportes", "inventario"
+]
+
+
+class Company(Base):
+    __tablename__ = "companies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    slug = Column(String(50), unique=True, nullable=False)
+    logo_url = Column(Text, nullable=True)
+    email_domain = Column(String(100), nullable=True)
+    primary_color = Column(String(7), default="#7C9CBF")
+    secondary_color = Column(String(7), default="#B4C7E7")
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    users = relationship("User", back_populates="company")
+    modules = relationship("CompanyModule", back_populates="company", cascade="all, delete-orphan")
+
+
+class CompanyModule(Base):
+    __tablename__ = "company_modules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    module_name = Column(String(50), nullable=False)
+    is_enabled = Column(Boolean, default=True)
+
+    company = relationship("Company", back_populates="modules")
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -58,9 +94,11 @@ class User(Base):
     role = Column(SQLEnum(UserRole), default=UserRole.USER)
     avatar = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    company = relationship("Company", back_populates="users")
     sales = relationship("Sale", back_populates="created_by_user")
     maintenance = relationship("Maintenance", back_populates="technician")
     repairs = relationship("Repair", back_populates="technician")
@@ -76,6 +114,7 @@ class Client(Base):
     address = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -91,6 +130,7 @@ class Category(Base):
     type = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     equipment = relationship("Equipment", back_populates="category")
@@ -109,6 +149,7 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     image_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -126,6 +167,7 @@ class InventoryMovement(Base):
     movement_type = Column(SQLEnum(InventoryMovementType), nullable=False)
     reason = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     product = relationship("Product", back_populates="inventory")
@@ -142,6 +184,7 @@ class Sale(Base):
     sale_date = Column(Date, default=date.today)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     notes = Column(Text, nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     client = relationship("Client", back_populates="sales")
@@ -157,6 +200,7 @@ class SaleItem(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, default=1)
     unit_price = Column(Float, nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
 
     sale = relationship("Sale", back_populates="items")
     product = relationship("Product", back_populates="sale_items")
@@ -178,6 +222,7 @@ class Equipment(Base):
     service_location = Column(SQLEnum(ServiceLocation), default=ServiceLocation.LOCAL)
     status = Column(SQLEnum(EquipmentStatus), default=EquipmentStatus.PENDING)
     arrival_date = Column(Date, default=date.today)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -202,6 +247,7 @@ class Maintenance(Base):
     next_maintenance_date = Column(Date, nullable=True)
     cost = Column(Float, default=0)
     status = Column(SQLEnum(EquipmentStatus), default=EquipmentStatus.PENDING)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -240,13 +286,14 @@ class Repair(Base):
     start_date = Column(Date, default=date.today)
     end_date = Column(Date, nullable=True)
     status = Column(SQLEnum(EquipmentStatus), default=EquipmentStatus.PENDING)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     equipment = relationship("Equipment", back_populates="repairs")
     technician = relationship("User", back_populates="repairs")
     images = relationship("RepairImage", back_populates="repair", cascade="all, delete-orphan")
-    warranty = relationship("Warranty", back_populates="repair", uselist=False)
+    warranty = relationship("Warranty", back_populates="repair")
 
 
 class RepairImage(Base):
@@ -274,6 +321,7 @@ class Warranty(Base):
     end_date = Column(Date, nullable=False)
     status = Column(String(50), default="active")
     notes = Column(Text, nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     equipment = relationship("Equipment", back_populates="warranties")
@@ -289,4 +337,5 @@ class EquipmentArrivalStatus(Base):
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     is_default = Column(Boolean, default=False)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

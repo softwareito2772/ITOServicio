@@ -18,7 +18,7 @@ async def get_movements(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(InventoryMovement)
+    query = db.query(InventoryMovement).filter(InventoryMovement.company_id == current_user.company_id)
     
     if product_id:
         query = query.filter(InventoryMovement.product_id == product_id)
@@ -46,7 +46,8 @@ async def create_movement(
     
     db_movement = InventoryMovement(
         **movement.model_dump(),
-        created_by=current_user.id
+        created_by=current_user.id,
+        company_id=current_user.company_id
     )
     db.add(db_movement)
     db.commit()
@@ -63,6 +64,8 @@ async def get_product_history(
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+    if current_user.company_id and product.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     movements = db.query(InventoryMovement).filter(
         InventoryMovement.product_id == product_id

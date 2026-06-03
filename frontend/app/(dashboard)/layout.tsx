@@ -27,6 +27,7 @@ import {
   Palette,
   AlertTriangle,
   Clock,
+  Building2,
 } from 'lucide-react';
 import { dashboardAPI } from '@/lib/api';
 
@@ -87,6 +88,8 @@ export default function DashboardLayout({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('theme-light');
+  const [companyName, setCompanyName] = useState('ITO Servicios');
+  const [companyLogo, setCompanyLogo] = useState('/logo.png');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -104,6 +107,19 @@ export default function DashboardLayout({
     }
     setTheme(getTheme());
     setCurrentTheme(getTheme());
+
+    const companyStr = localStorage.getItem('company');
+    if (companyStr) {
+      const company = JSON.parse(companyStr);
+      if (company.name) setCompanyName(company.name);
+      if (company.logo_url) setCompanyLogo(company.logo_url);
+      if (company.primary_color) {
+        document.documentElement.style.setProperty('--primary', company.primary_color);
+      }
+      if (company.secondary_color) {
+        document.documentElement.style.setProperty('--secondary', company.secondary_color);
+      }
+    }
   }, [router]);
 
   useEffect(() => {
@@ -147,6 +163,9 @@ export default function DashboardLayout({
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('company');
+    document.documentElement.style.removeProperty('--primary');
+    document.documentElement.style.removeProperty('--secondary');
     toast.success('Sesión cerrada');
     router.push('/login');
   };
@@ -161,8 +180,8 @@ export default function DashboardLayout({
         <div className="h-full flex flex-col">
           <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
             <div className="flex items-center gap-3">
-              <Image src="/logo.png" alt="ITO" width={36} height={36} className="rounded-lg" />
-              <span className="font-bold text-gray-800">ITO Servicios</span>
+              <Image src={companyLogo} alt="Logo" width={36} height={36} className="rounded-lg" />
+              <span className="font-bold text-gray-800">{companyName}</span>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -190,6 +209,19 @@ export default function DashboardLayout({
                 </Link>
               );
             })}
+            {user?.role === 'super_admin' && (
+              <Link
+                href="/super-admin"
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  pathname === '/super-admin'
+                    ? 'bg-primary text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Building2 size={20} />
+                <span className="font-medium">Super Admin</span>
+              </Link>
+            )}
           </nav>
 
           <div className="p-4 border-t border-gray-200">

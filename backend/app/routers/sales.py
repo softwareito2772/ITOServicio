@@ -20,7 +20,7 @@ async def get_sales(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Sale)
+    query = db.query(Sale).filter(Sale.company_id == current_user.company_id)
     
     if client_id:
         query = query.filter(Sale.client_id == client_id)
@@ -42,6 +42,8 @@ async def get_sale(
     sale = db.query(Sale).filter(Sale.id == sale_id).first()
     if not sale:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
+    if current_user.company_id and sale.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     return sale
 
 
@@ -88,6 +90,7 @@ async def create_sale(
         total=total,
         sale_date=date.today(),
         created_by=current_user.id,
+        company_id=current_user.company_id,
         notes=sale.notes
     )
     db.add(db_sale)
@@ -122,6 +125,8 @@ async def update_sale(
     sale = db.query(Sale).filter(Sale.id == sale_id).first()
     if not sale:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
+    if current_user.company_id and sale.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     if sale_update.status:
         sale.status = sale_update.status
@@ -142,6 +147,8 @@ async def delete_sale(
     sale = db.query(Sale).filter(Sale.id == sale_id).first()
     if not sale:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
+    if current_user.company_id and sale.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     db.delete(sale)
     db.commit()

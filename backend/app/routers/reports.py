@@ -22,7 +22,7 @@ async def report_sales(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Sale)
+    query = db.query(Sale).filter(Sale.company_id == current_user.company_id)
     
     if start_date:
         query = query.filter(Sale.sale_date >= start_date)
@@ -57,7 +57,7 @@ async def report_maintenance(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Maintenance)
+    query = db.query(Maintenance).filter(Maintenance.company_id == current_user.company_id)
     
     if start_date:
         query = query.filter(Maintenance.start_date >= start_date)
@@ -94,7 +94,7 @@ async def report_repairs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Repair)
+    query = db.query(Repair).filter(Repair.company_id == current_user.company_id)
     
     if start_date:
         query = query.filter(Repair.start_date >= start_date)
@@ -131,7 +131,7 @@ async def report_inventory(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    products = db.query(Product).filter(Product.is_active == True).order_by(Product.name).all()
+    products = db.query(Product).filter(Product.is_active == True, Product.company_id == current_user.company_id).order_by(Product.name).all()
     
     low_stock = [p for p in products if p.stock <= p.stock_min]
     
@@ -165,6 +165,7 @@ async def report_inactive_clients(
     cutoff_date = datetime.now().date() - relativedelta(months=months)
     
     active_client_ids = db.query(Equipment.client_id).filter(
+        Equipment.company_id == current_user.company_id,
         Equipment.created_at >= cutoff_date
     ).distinct().all()
     active_ids = [c[0] for c in active_client_ids]
@@ -172,11 +173,13 @@ async def report_inactive_clients(
     if active_ids:
         clients = db.query(Client).filter(
             Client.is_active == True,
+            Client.company_id == current_user.company_id,
             ~Client.id.in_(active_ids)
         ).order_by(Client.created_at.desc()).all()
     else:
         clients = db.query(Client).filter(
-            Client.is_active == True
+            Client.is_active == True,
+            Client.company_id == current_user.company_id
         ).order_by(Client.created_at.desc()).all()
     
     return {
@@ -199,7 +202,8 @@ async def report_equipment_history(
     current_user: User = Depends(get_current_user)
 ):
     equipment = db.query(Equipment).filter(
-        Equipment.client_id == client_id
+        Equipment.client_id == client_id,
+        Equipment.company_id == current_user.company_id
     ).all()
     
     client = db.query(Client).filter(Client.id == client_id).first()
@@ -262,7 +266,7 @@ async def export_report(
     ws = wb.active
     
     if report_type == "sales":
-        query = db.query(Sale)
+        query = db.query(Sale).filter(Sale.company_id == current_user.company_id)
         if start_date:
             query = query.filter(Sale.sale_date >= start_date)
         if end_date:
@@ -274,13 +278,13 @@ async def export_report(
             ws.append([s.id, s.client.name if s.client else "", s.total, str(s.sale_date), s.status])
     
     elif report_type == "inventory":
-        products = db.query(Product).filter(Product.is_active == True).all()
+        products = db.query(Product).filter(Product.is_active == True, Product.company_id == current_user.company_id).all()
         ws.append(["ID", "Producto", "Stock", "Stock Mínimo", "Precio"])
         for p in products:
             ws.append([p.id, p.name, p.stock, p.stock_min, p.price])
     
     elif report_type == "maintenance":
-        query = db.query(Maintenance)
+        query = db.query(Maintenance).filter(Maintenance.company_id == current_user.company_id)
         if start_date:
             query = query.filter(Maintenance.start_date >= start_date)
         if end_date:
@@ -301,7 +305,7 @@ async def export_report(
             ])
     
     elif report_type == "repairs":
-        query = db.query(Repair)
+        query = db.query(Repair).filter(Repair.company_id == current_user.company_id)
         if start_date:
             query = query.filter(Repair.start_date >= start_date)
         if end_date:
@@ -324,7 +328,7 @@ async def export_report(
             ])
     
     elif report_type == "clients":
-        clients = db.query(Client).filter(Client.is_active == True).all()
+        clients = db.query(Client).filter(Client.is_active == True, Client.company_id == current_user.company_id).all()
         ws.append(["ID", "Nombre", "Teléfono", "Email", "Dirección"])
         for c in clients:
             ws.append([c.id, c.name, c.phone, c.email or "", c.address or ""])

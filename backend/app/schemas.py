@@ -1,7 +1,58 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime
 from .models import UserRole, ServiceLocation, EquipmentStatus, ArrivalCondition, WarrantyType, InventoryMovementType
+
+
+AVAILABLE_MODULES = [
+    "ventas", "mantenimiento", "reparaciones", "equipos",
+    "productos", "clientes", "garantias", "reportes", "inventario"
+]
+
+
+class CompanyBase(BaseModel):
+    name: str
+    slug: str
+    email_domain: Optional[str] = None
+    primary_color: str = "#7C9CBF"
+    secondary_color: str = "#B4C7E7"
+    description: Optional[str] = None
+
+
+class CompanyCreate(CompanyBase):
+    logo_url: Optional[str] = None
+    modules: List[str] = []
+    admin_email: str
+    admin_password: str
+    admin_name: str
+
+
+class CompanyUpdate(BaseModel):
+    name: Optional[str] = None
+    logo_url: Optional[str] = None
+    email_domain: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class CompanyResponse(CompanyBase):
+    id: int
+    logo_url: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CompanyWithModules(CompanyResponse):
+    modules: List[str] = []
+
+
+class CompanyModuleUpdate(BaseModel):
+    modules: List[str]
 
 
 class UserBase(BaseModel):
@@ -27,6 +78,7 @@ class UserResponse(UserBase):
     role: UserRole
     avatar: Optional[str] = None
     is_active: bool
+    company_id: Optional[int] = None
     created_at: datetime
 
     class Config:
@@ -41,10 +93,19 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user_role: str
+    company_id: Optional[int] = None
+    company_name: Optional[str] = None
+    company_logo: Optional[str] = None
+    company_primary_color: Optional[str] = None
+    company_secondary_color: Optional[str] = None
+    company_modules: List[str] = []
 
 
 class TokenData(BaseModel):
     user_id: Optional[int] = None
+    company_id: Optional[int] = None
+    role: Optional[str] = None
 
 
 class ClientBase(BaseModel):
@@ -71,6 +132,7 @@ class ClientUpdate(BaseModel):
 class ClientResponse(ClientBase):
     id: int
     is_active: bool
+    company_id: Optional[int] = None
     created_at: datetime
 
     class Config:
@@ -96,6 +158,7 @@ class CategoryUpdate(BaseModel):
 class CategoryResponse(CategoryBase):
     id: int
     is_active: bool
+    company_id: Optional[int] = None
     created_at: datetime
 
     class Config:
@@ -130,6 +193,7 @@ class ProductUpdate(BaseModel):
 class ProductResponse(ProductBase):
     id: int
     is_active: bool
+    company_id: Optional[int] = None
     created_at: datetime
     category: Optional[CategoryResponse] = None
 
@@ -151,6 +215,7 @@ class InventoryMovementCreate(InventoryMovementBase):
 class InventoryMovementResponse(InventoryMovementBase):
     id: int
     created_by: Optional[int] = None
+    company_id: Optional[int] = None
     created_at: datetime
     product: Optional[ProductResponse] = None
 
@@ -196,6 +261,7 @@ class SaleResponse(SaleBase):
     status: str
     sale_date: date
     created_by: Optional[int] = None
+    company_id: Optional[int] = None
     created_at: datetime
     client: Optional[ClientResponse] = None
     items: List[SaleItemResponse] = []
@@ -238,6 +304,7 @@ class EquipmentResponse(EquipmentBase):
     id: int
     status: EquipmentStatus
     arrival_date: date
+    company_id: Optional[int] = None
     created_at: datetime
     client: Optional[ClientResponse] = None
     category: Optional[CategoryResponse] = None
@@ -293,6 +360,7 @@ class MaintenanceUpdate(BaseModel):
 class MaintenanceResponse(MaintenanceBase):
     id: int
     technician_id: Optional[int] = None
+    company_id: Optional[int] = None
     created_at: datetime
     equipment: Optional[EquipmentResponse] = None
     technician: Optional[UserResponse] = None
@@ -353,6 +421,7 @@ class RepairUpdate(BaseModel):
 class RepairResponse(RepairBase):
     id: int
     technician_id: Optional[int] = None
+    company_id: Optional[int] = None
     created_at: datetime
     equipment: Optional[EquipmentResponse] = None
     technician: Optional[UserResponse] = None
@@ -386,6 +455,7 @@ class WarrantyUpdate(BaseModel):
 class WarrantyResponse(WarrantyBase):
     id: int
     status: str
+    company_id: Optional[int] = None
     created_at: datetime
     equipment: Optional[EquipmentResponse] = None
     repair: Optional[RepairResponse] = None

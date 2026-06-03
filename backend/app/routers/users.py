@@ -4,7 +4,7 @@ from typing import List
 from ..database import get_db
 from ..models import User, UserRole
 from ..schemas import UserCreate, UserUpdate, UserResponse
-from ..auth import get_current_user, get_current_admin_user
+from ..auth import get_current_user, get_current_admin_user, get_current_super_admin, hash_password
 
 router = APIRouter()
 
@@ -16,7 +16,12 @@ async def get_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
-    users = db.query(User).offset(skip).limit(limit).all()
+    if current_user.role == "super_admin":
+        users = db.query(User).offset(skip).limit(limit).all()
+    else:
+        users = db.query(User).filter(
+            User.company_id == current_user.company_id
+        ).offset(skip).limit(limit).all()
     return users
 
 
@@ -29,6 +34,10 @@ async def get_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if current_user.role != "super_admin" and user.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
     return user
 
 
@@ -41,14 +50,18 @@ async def create_user(
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
-    
-    from ..auth import hash_password
-    hashed_password = hash_password(user.password)
+
+    if current_user.role == "super_admin":
+        company_id = None
+    else:
+        company_id = current_user.company_id
+
     db_user = User(
         email=user.email,
-        password_hash=hashed_password,
+        password_hash=hash_password(user.password),
         name=user.name,
-        role=user.role
+        role=user.role,
+        company_id=company_id,
     )
     db.add(db_user)
     db.commit()
@@ -66,19 +79,21 @@ async def update_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
+
+    if current_user.role != "super_admin" and user.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
     if user_update.name is not None:
         user.name = user_update.name
     if user_update.email is not None:
         user.email = user_update.email
     if user_update.password is not None:
-        from ..auth import hash_password
         user.password_hash = hash_password(user_update.password)
     if user_update.role is not None:
         user.role = user_update.role
     if user_update.avatar is not None:
         user.avatar = user_update.avatar
-    
+
     db.commit()
     db.refresh(user)
     return user
@@ -93,10 +108,13 @@ async def delete_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
+
+    if current_user.role != "super_admin" and user.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
     if user.id == current_user.id:
         raise HTTPException(status_code=400, detail="No puedes eliminarte a ti mismo")
-    
+
     user.is_active = False
     db.commit()
     return {"message": "Usuario eliminado correctamente"}

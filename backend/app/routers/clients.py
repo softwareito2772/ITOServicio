@@ -21,14 +21,17 @@ async def get_clients(
     current_user: User = Depends(get_current_user)
 ):
     query = db.query(Client).filter(Client.is_active == True)
-    
+
+    if current_user.company_id:
+        query = query.filter(Client.company_id == current_user.company_id)
+
     if search:
         query = query.filter(
             (Client.name.ilike(f"%{search}%")) |
             (Client.phone.ilike(f"%{search}%")) |
             (Client.email.ilike(f"%{search}%"))
         )
-    
+
     clients = query.order_by(Client.created_at.desc()).offset(skip).limit(limit).all()
     return clients
 
@@ -42,17 +45,24 @@ async def get_inactive_clients(
     current_user: User = Depends(get_current_user)
 ):
     cutoff_date = datetime.now().date() - relativedelta(months=months)
-    
-    active_client_ids = db.query(Equipment.client_id).filter(
+
+    equipment_query = db.query(Equipment.client_id).filter(
         Equipment.created_at >= cutoff_date
-    ).distinct().all()
+    )
+    if current_user.company_id:
+        equipment_query = equipment_query.filter(Equipment.company_id == current_user.company_id)
+
+    active_client_ids = equipment_query.distinct().all()
     active_ids = [c[0] for c in active_client_ids]
-    
+
     query = db.query(Client).filter(
         Client.is_active == True,
         ~Client.id.in_(active_ids) if active_ids else True
     )
-    
+
+    if current_user.company_id:
+        query = query.filter(Client.company_id == current_user.company_id)
+
     clients = query.order_by(Client.created_at.desc()).offset(skip).limit(limit).all()
     return clients
 
@@ -66,6 +76,10 @@ async def get_client(
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+    if current_user.company_id and client.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
     return client
 
 
@@ -75,7 +89,7 @@ async def create_client(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    db_client = Client(**client.model_dump())
+    db_client = Client(**client.model_dump(), company_id=current_user.company_id)
     db.add(db_client)
     db.commit()
     db.refresh(db_client)
@@ -92,10 +106,13 @@ async def update_client(
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
-    
+
+    if current_user.company_id and client.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
     for key, value in client_update.model_dump(exclude_unset=True).items():
         setattr(client, key, value)
-    
+
     db.commit()
     db.refresh(client)
     return client
@@ -110,7 +127,10 @@ async def delete_client(
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
-    
+
+    if current_user.company_id and client.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
     client.is_active = False
     db.commit()
     return {"message": "Cliente eliminado correctamente"}
@@ -125,7 +145,10 @@ async def get_client_equipment(
     equipment = db.query(Equipment).filter(
         Equipment.client_id == client_id
     ).order_by(Equipment.created_at.desc()).all()
-    
+
+    if current_user.company_id:
+        equipment = [e for e in equipment if e.company_id == current_user.company_id]
+
     result = []
     for eq in equipment:
         result.append({
@@ -138,5 +161,5 @@ async def get_client_equipment(
             "arrival_date": eq.arrival_date,
             "created_at": eq.created_at
         })
-    
+
     return result

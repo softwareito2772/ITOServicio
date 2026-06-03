@@ -21,7 +21,7 @@ async def get_products(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Product).filter(Product.is_active == True)
+    query = db.query(Product).filter(Product.is_active == True, Product.company_id == current_user.company_id)
     
     if search:
         query = query.filter(
@@ -46,6 +46,7 @@ async def get_low_stock_products(
 ):
     products = db.query(Product).filter(
         Product.is_active == True,
+        Product.company_id == current_user.company_id,
         Product.stock <= Product.stock_min
     ).order_by(Product.stock).all()
     return products
@@ -60,6 +61,8 @@ async def get_product(
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+    if current_user.company_id and product.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     return product
 
 
@@ -69,7 +72,7 @@ async def create_product(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    db_product = Product(**product.model_dump())
+    db_product = Product(**product.model_dump(), company_id=current_user.company_id)
     db.add(db_product)
     db.commit()
     db.refresh(db_product)
@@ -86,6 +89,8 @@ async def update_product(
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+    if current_user.company_id and product.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     for key, value in product_update.model_dump(exclude_unset=True).items():
         setattr(product, key, value)
@@ -104,6 +109,8 @@ async def delete_product(
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+    if current_user.company_id and product.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     product.is_active = False
     db.commit()
@@ -120,6 +127,8 @@ async def upload_product_image(
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
+    if current_user.company_id and product.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     contents = await file.read()
     result = upload_image(contents, folder="ito/products")

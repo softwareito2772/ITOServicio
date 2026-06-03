@@ -3,9 +3,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from ..database import get_db
-from ..models import User, UserRole
+from ..models import User, UserRole, Company, CompanyModule
 from ..schemas import UserCreate, UserResponse, UserLogin, Token
-from ..auth import verify_password, hash_password, create_access_token, get_current_user
+from ..auth import verify_password, hash_password, create_access_token, get_current_user, get_company_data
 from ..config import settings
 
 router = APIRouter()
@@ -17,7 +17,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
-    
+
     hashed_password = hash_password(user.password)
     db_user = User(
         email=user.email,
@@ -39,18 +39,32 @@ async def login(user_login: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email o contraseña incorrectos"
         )
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuario inactivo"
         )
-    
+
+    company_data = {}
+    if user.company_id:
+        company_data = get_company_data(db, user.company_id)
+
     access_token = create_access_token(
-        data={"sub": str(user.id)},
+        data={
+            "sub": str(user.id),
+            "company_id": user.company_id,
+            "role": user.role.value if hasattr(user.role, 'value') else user.role,
+        },
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_role": user.role.value if hasattr(user.role, 'value') else user.role,
+        "company_id": user.company_id,
+        **company_data
+    }
 
 
 @router.get("/me", response_model=UserResponse)
@@ -72,7 +86,7 @@ async def update_me(
         current_user.email = email
     if password:
         current_user.password_hash = hash_password(password)
-    
+
     db.commit()
     db.refresh(current_user)
     return current_user

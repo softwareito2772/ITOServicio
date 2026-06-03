@@ -22,7 +22,7 @@ async def get_maintenance_list(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Maintenance)
+    query = db.query(Maintenance).filter(Maintenance.company_id == current_user.company_id)
     
     if equipment_id:
         query = query.filter(Maintenance.equipment_id == equipment_id)
@@ -44,6 +44,8 @@ async def get_maintenance_by_id(
     maintenance = db.query(Maintenance).filter(Maintenance.id == maintenance_id).first()
     if not maintenance:
         raise HTTPException(status_code=404, detail="Mantenimiento no encontrado")
+    if current_user.company_id and maintenance.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     return maintenance
 
 
@@ -90,7 +92,8 @@ async def create_maintenance(
         end_date=end,
         next_maintenance_date=next_date,
         cost=cost,
-        status=EquipmentStatus(status)
+        status=EquipmentStatus(status),
+        company_id=current_user.company_id
     )
     db.add(db_maintenance)
     db.flush()
@@ -167,6 +170,8 @@ async def update_maintenance(
     maintenance = db.query(Maintenance).filter(Maintenance.id == maintenance_id).first()
     if not maintenance:
         raise HTTPException(status_code=404, detail="Mantenimiento no encontrado")
+    if current_user.company_id and maintenance.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     if equipment_id is not None:
         maintenance.equipment_id = equipment_id
@@ -246,6 +251,8 @@ async def delete_maintenance(
     maintenance = db.query(Maintenance).filter(Maintenance.id == maintenance_id).first()
     if not maintenance:
         raise HTTPException(status_code=404, detail="Mantenimiento no encontrado")
+    if current_user.company_id and maintenance.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     db.delete(maintenance)
     db.commit()
@@ -264,6 +271,8 @@ async def add_maintenance_image(
     maintenance = db.query(Maintenance).filter(Maintenance.id == maintenance_id).first()
     if not maintenance:
         raise HTTPException(status_code=404, detail="Mantenimiento no encontrado")
+    if current_user.company_id and maintenance.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     db_image = MaintenanceImage(
         maintenance_id=maintenance_id,

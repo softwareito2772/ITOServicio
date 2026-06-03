@@ -23,6 +23,8 @@ def serialize_value(val):
         return val.decode('utf-8', errors='replace')
     if isinstance(val, bool):
         return val
+    if isinstance(val, int) and val in (0, 1):
+        return bool(val)
     return val
 
 def export_sqlite(db_path):
@@ -57,6 +59,7 @@ def import_postgresql(data, postgres_url):
     tables_in_data = [t for t in table_order if t in data]
     
     with engine.connect() as conn:
+        conn.execute(text("SET CONSTRAINTS ALL DEFERRED"))
         for table in tables_in_data:
             rows = data[table]
             if not rows:

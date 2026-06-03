@@ -210,6 +210,16 @@ export const dashboardAPI = {
   getRecentActivity: () => api.get('/dashboard/recent-activity'),
 };
 
+export const companiesAPI = {
+  getAll: () => api.get('/companies/'),
+  getById: (id: number) => api.get(`/companies/${id}`),
+  create: (data: any) => api.post('/companies/', data),
+  update: (id: number, data: any) => api.put(`/companies/${id}`, data),
+  updateModules: (id: number, modules: string[]) => api.put(`/companies/${id}/modules`, { modules }),
+  getAvailableModules: () => api.get('/companies/available-modules'),
+  getUsers: (id: number) => api.get(`/companies/${id}/users`),
+};
+
 export const reportsAPI = {
   getSales: (startDate?: string, endDate?: string, clientId?: number) => {
     let url = '/reports/sales';

@@ -37,7 +37,7 @@ async def get_warranties(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Warranty)
+    query = db.query(Warranty).filter(Warranty.company_id == current_user.company_id)
     
     if status == "active":
         query = query.filter(Warranty.status == "active", Warranty.end_date >= date.today())
@@ -64,6 +64,8 @@ async def get_warranty(
     warranty = db.query(Warranty).filter(Warranty.id == warranty_id).first()
     if not warranty:
         raise HTTPException(status_code=404, detail="Garantía no encontrada")
+    if current_user.company_id and warranty.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     return warranty
 
 
@@ -88,7 +90,8 @@ async def create_warranty(
         start_date=warranty.start_date or date.today(),
         end_date=end_date,
         notes=warranty.notes,
-        status="active"
+        status="active",
+        company_id=current_user.company_id
     )
     db.add(db_warranty)
     db.commit()
@@ -106,6 +109,8 @@ async def update_warranty(
     warranty = db.query(Warranty).filter(Warranty.id == warranty_id).first()
     if not warranty:
         raise HTTPException(status_code=404, detail="Garantía no encontrada")
+    if current_user.company_id and warranty.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     for key, value in warranty_update.model_dump(exclude_unset=True).items():
         setattr(warranty, key, value)
@@ -124,6 +129,8 @@ async def delete_warranty(
     warranty = db.query(Warranty).filter(Warranty.id == warranty_id).first()
     if not warranty:
         raise HTTPException(status_code=404, detail="Garantía no encontrada")
+    if current_user.company_id and warranty.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
     
     db.delete(warranty)
     db.commit()
@@ -137,6 +144,7 @@ async def get_warranties_by_equipment(
     current_user: User = Depends(get_current_user)
 ):
     warranties = db.query(Warranty).filter(
-        Warranty.equipment_id == equipment_id
+        Warranty.equipment_id == equipment_id,
+        Warranty.company_id == current_user.company_id
     ).order_by(Warranty.created_at.desc()).all()
     return warranties

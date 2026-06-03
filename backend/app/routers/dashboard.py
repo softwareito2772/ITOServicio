@@ -16,47 +16,55 @@ async def get_dashboard_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    total_clients = db.query(Client).filter(Client.is_active == True).count()
+    total_clients = db.query(Client).filter(Client.is_active == True, Client.company_id == current_user.company_id).count()
     
-    total_equipment = db.query(Equipment).count()
+    total_equipment = db.query(Equipment).filter(Equipment.company_id == current_user.company_id).count()
     
-    total_products = db.query(Product).filter(Product.is_active == True).count()
+    total_products = db.query(Product).filter(Product.is_active == True, Product.company_id == current_user.company_id).count()
     low_stock_products = db.query(Product).filter(
         Product.is_active == True,
+        Product.company_id == current_user.company_id,
         Product.stock <= Product.stock_min
     ).count()
     
-    total_sales = db.query(func.coalesce(func.sum(Sale.total), 0)).scalar()
-    total_maintenance_cost = db.query(func.coalesce(func.sum(Maintenance.cost), 0)).scalar()
-    total_repair_cost = db.query(func.coalesce(func.sum(Repair.total_cost), 0)).scalar()
+    total_sales = db.query(func.coalesce(func.sum(Sale.total), 0)).filter(Sale.company_id == current_user.company_id).scalar()
+    total_maintenance_cost = db.query(func.coalesce(func.sum(Maintenance.cost), 0)).filter(Maintenance.company_id == current_user.company_id).scalar()
+    total_repair_cost = db.query(func.coalesce(func.sum(Repair.total_cost), 0)).filter(Repair.company_id == current_user.company_id).scalar()
     
     first_day_of_month = date.today().replace(day=1)
     sales_this_month = db.query(func.coalesce(func.sum(Sale.total), 0)).filter(
+        Sale.company_id == current_user.company_id,
         Sale.sale_date >= first_day_of_month
     ).scalar()
     maintenance_cost_this_month = db.query(func.coalesce(func.sum(Maintenance.cost), 0)).filter(
+        Maintenance.company_id == current_user.company_id,
         Maintenance.start_date >= first_day_of_month
     ).scalar()
     repair_cost_this_month = db.query(func.coalesce(func.sum(Repair.total_cost), 0)).filter(
+        Repair.company_id == current_user.company_id,
         Repair.start_date >= first_day_of_month
     ).scalar()
     total_combined_this_month = float(sales_this_month) + float(maintenance_cost_this_month) + float(repair_cost_this_month)
     
     pending_maintenance = db.query(Maintenance).filter(
+        Maintenance.company_id == current_user.company_id,
         Maintenance.status.in_([EquipmentStatus.PENDING, EquipmentStatus.IN_PROGRESS])
     ).count()
     
     pending_repairs = db.query(Repair).filter(
+        Repair.company_id == current_user.company_id,
         Repair.status.in_([EquipmentStatus.PENDING, EquipmentStatus.IN_PROGRESS])
     ).count()
     
     active_warranties = db.query(Warranty).filter(
+        Warranty.company_id == current_user.company_id,
         Warranty.status == "active",
         Warranty.end_date >= date.today()
     ).count()
     
     cutoff_date = datetime.now().date() - relativedelta(months=6)
     active_client_ids = db.query(Equipment.client_id).filter(
+        Equipment.company_id == current_user.company_id,
         Equipment.created_at >= cutoff_date
     ).distinct().all()
     active_ids = [c[0] for c in active_client_ids]
@@ -64,10 +72,14 @@ async def get_dashboard_stats(
     if active_ids:
         inactive_clients = db.query(Client).filter(
             Client.is_active == True,
+            Client.company_id == current_user.company_id,
             ~Client.id.in_(active_ids)
         ).count()
     else:
-        inactive_clients = 0
+        inactive_clients = db.query(Client).filter(
+            Client.is_active == True,
+            Client.company_id == current_user.company_id
+        ).count()
     
     return DashboardStats(
         total_clients=total_clients,
@@ -93,15 +105,21 @@ async def get_recent_activity(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    recent_equipment = db.query(Equipment).order_by(
+    recent_equipment = db.query(Equipment).filter(
+        Equipment.company_id == current_user.company_id
+    ).order_by(
         Equipment.created_at.desc()
     ).limit(5).all()
     
-    recent_maintenance = db.query(Maintenance).order_by(
+    recent_maintenance = db.query(Maintenance).filter(
+        Maintenance.company_id == current_user.company_id
+    ).order_by(
         Maintenance.created_at.desc()
     ).limit(5).all()
     
-    recent_repairs = db.query(Repair).order_by(
+    recent_repairs = db.query(Repair).filter(
+        Repair.company_id == current_user.company_id
+    ).order_by(
         Repair.created_at.desc()
     ).limit(5).all()
     
