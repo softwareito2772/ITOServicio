@@ -9,7 +9,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title=settings.APP_NAME,
     description="API para el sistema de gestión de servicios ITO",
-    version="2.0.0"
+    version="2.0.1"
 )
 
 app.add_middleware(
