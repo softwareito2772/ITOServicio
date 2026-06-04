@@ -230,7 +230,7 @@ class Equipment(Base):
     category = relationship("Category", back_populates="equipment")
     maintenance = relationship("Maintenance", back_populates="equipment")
     repairs = relationship("Repair", back_populates="equipment")
-    warranties = relationship("Warranty", back_populates="warranties")
+    warranties = relationship("Warranty", back_populates="equipment")
 
 
 class Maintenance(Base):
