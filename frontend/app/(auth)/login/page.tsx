@@ -71,7 +71,11 @@ export default function LoginPage() {
       }
 
       toast.success('¡Bienvenido!');
-      router.push('/dashboard');
+      if (data.user_role === 'super_admin') {
+        router.push('/super-admin');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       const detail = error.response?.data?.detail;
       if (Array.isArray(detail)) {
