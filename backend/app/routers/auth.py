@@ -50,19 +50,22 @@ async def login(user_login: UserLogin, db: Session = Depends(get_db)):
     if user.company_id:
         company_data = get_company_data(db, user.company_id)
 
+    role_value = user.role.value if hasattr(user.role, 'value') else user.role
+    company_id_value = user.company_id if user.company_id else None
+
     access_token = create_access_token(
         data={
             "sub": str(user.id),
-            "company_id": user.company_id,
-            "role": user.role.value if hasattr(user.role, 'value') else user.role,
+            "company_id": company_id_value,
+            "role": role_value,
         },
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user_role": user.role.value if hasattr(user.role, 'value') else user.role,
-        "company_id": user.company_id,
+        "user_role": role_value,
+        "company_id": company_id_value,
         **company_data
     }
 
