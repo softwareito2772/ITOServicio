@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Loader2, Building2, Palette, Modules, X } from 'lucide-react';
+import { Plus, Loader2, Building2, X, Edit, Check } from 'lucide-react';
 import { companiesAPI } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -25,25 +25,18 @@ const MODULE_LABELS: Record<string, string> = {
 export default function SuperAdminPage() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    email_domain: '',
-    description: '',
-    primary_color: '#7C9CBF',
-    secondary_color: '#B4C7E7',
-    logo_url: '',
+    name: '', slug: '', email_domain: '', description: '',
+    primary_color: '#7C9CBF', secondary_color: '#B4C7E7', logo_url: '',
     modules: [] as string[],
-    admin_email: '',
-    admin_password: '',
-    admin_name: '',
+    admin_email: '', admin_password: '', admin_name: '',
   });
+  const [editModules, setEditModules] = useState<string[]>([]);
 
-  useEffect(() => {
-    loadCompanies();
-  }, []);
+  useEffect(() => { loadCompanies(); }, []);
 
   const loadCompanies = async () => {
     try {
@@ -65,7 +58,13 @@ export default function SuperAdminPage() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const toggleEditModule = (mod: string) => {
+    setEditModules(prev =>
+      prev.includes(mod) ? prev.filter(m => m !== mod) : [...prev, mod]
+    );
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.admin_email || !formData.admin_password || !formData.admin_name) {
       toast.error('Completa los datos del administrador');
@@ -75,19 +74,41 @@ export default function SuperAdminPage() {
     try {
       await companiesAPI.create(formData);
       toast.success('Empresa creada correctamente');
-      setShowModal(false);
-      setFormData({
-        name: '', slug: '', email_domain: '', description: '',
-        primary_color: '#7C9CBF', secondary_color: '#B4C7E7',
-        logo_url: '', modules: [],
-        admin_email: '', admin_password: '', admin_name: '',
-      });
+      setShowCreateModal(false);
+      resetForm();
       loadCompanies();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Error al crear empresa');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEditModules = async () => {
+    setSaving(true);
+    try {
+      await companiesAPI.updateModules(editingCompany.id, editModules);
+      toast.success(`Módulos de ${editingCompany.name} actualizados`);
+      setEditingCompany(null);
+      loadCompanies();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Error al actualizar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openEditModules = (company: any) => {
+    setEditingCompany(company);
+    setEditModules(company.modules || []);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '', slug: '', email_domain: '', description: '',
+      primary_color: '#7C9CBF', secondary_color: '#B4C7E7', logo_url: '',
+      modules: [], admin_email: '', admin_password: '', admin_name: '',
+    });
   };
 
   if (loading) {
@@ -103,9 +124,9 @@ export default function SuperAdminPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Super Admin</h1>
-          <p className="text-gray-500">Gestión de empresas</p>
+          <p className="text-gray-500">Gestión de empresas y módulos</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+        <button onClick={() => { resetForm(); setShowCreateModal(true); }} className="btn-primary flex items-center gap-2">
           <Plus size={20} />
           Nueva Empresa
         </button>
@@ -134,71 +155,76 @@ export default function SuperAdminPage() {
               <div className="w-4 h-4 rounded" style={{ background: company.primary_color }} />
               <div className="w-4 h-4 rounded" style={{ background: company.secondary_color }} />
             </div>
-            <div className="flex flex-wrap gap-1">
-              {company.modules?.map((mod: string) => (
+            <div className="flex flex-wrap gap-1 mb-3">
+              {company.modules?.length > 0 ? company.modules.map((mod: string) => (
                 <span key={mod} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
                   {MODULE_LABELS[mod] || mod}
                 </span>
-              ))}
+              )) : (
+                <span className="text-xs text-gray-400">Sin módulos</span>
+              )}
             </div>
+            <button
+              onClick={() => openEditModules(company)}
+              className="w-full btn-outline flex items-center justify-center gap-2 text-sm py-2"
+            >
+              <Edit size={16} />
+              Editar Módulos
+            </button>
           </div>
         ))}
       </div>
 
-      {showModal && (
+      {companies.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          <Building2 size={48} className="mx-auto mb-4 text-gray-300" />
+          <p>No hay empresas creadas</p>
+        </div>
+      )}
+
+      {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-800">Nueva Empresa</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={24} />
-              </button>
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                  <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
-                    className="input-field" required />
+                  <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="input-field" required />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
-                  <input type="text" value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})}
-                    className="input-field" placeholder="mi-empresa" required />
+                  <input type="text" value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} className="input-field" placeholder="mi-empresa" required />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Dominio de email</label>
-                <input type="text" value={formData.email_domain} onChange={e => setFormData({...formData, email_domain: e.target.value})}
-                  className="input-field" placeholder="miempresa.com" />
+                <input type="text" value={formData.email_domain} onChange={e => setFormData({...formData, email_domain: e.target.value})} className="input-field" placeholder="miempresa.com" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
-                  className="input-field" rows={3} placeholder="Describe qué hace la empresa..." />
+                <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="input-field" rows={3} placeholder="Describe qué hace la empresa..." />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-                <input type="text" value={formData.logo_url} onChange={e => setFormData({...formData, logo_url: e.target.value})}
-                  className="input-field" placeholder="https://ejemplo.com/logo.png" />
+                <input type="text" value={formData.logo_url} onChange={e => setFormData({...formData, logo_url: e.target.value})} className="input-field" placeholder="https://ejemplo.com/logo.png" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Color primario</label>
                   <div className="flex items-center gap-2">
-                    <input type="color" value={formData.primary_color} onChange={e => setFormData({...formData, primary_color: e.target.value})}
-                      className="w-10 h-10 rounded border" />
-                    <input type="text" value={formData.primary_color} onChange={e => setFormData({...formData, primary_color: e.target.value})}
-                      className="input-field flex-1" />
+                    <input type="color" value={formData.primary_color} onChange={e => setFormData({...formData, primary_color: e.target.value})} className="w-10 h-10 rounded border" />
+                    <input type="text" value={formData.primary_color} onChange={e => setFormData({...formData, primary_color: e.target.value})} className="input-field flex-1" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Color secundario</label>
                   <div className="flex items-center gap-2">
-                    <input type="color" value={formData.secondary_color} onChange={e => setFormData({...formData, secondary_color: e.target.value})}
-                      className="w-10 h-10 rounded border" />
-                    <input type="text" value={formData.secondary_color} onChange={e => setFormData({...formData, secondary_color: e.target.value})}
-                      className="input-field flex-1" />
+                    <input type="color" value={formData.secondary_color} onChange={e => setFormData({...formData, secondary_color: e.target.value})} className="w-10 h-10 rounded border" />
+                    <input type="text" value={formData.secondary_color} onChange={e => setFormData({...formData, secondary_color: e.target.value})} className="input-field flex-1" />
                   </div>
                 </div>
               </div>
@@ -222,29 +248,65 @@ export default function SuperAdminPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                    <input type="text" value={formData.admin_name} onChange={e => setFormData({...formData, admin_name: e.target.value})}
-                      className="input-field" required />
+                    <input type="text" value={formData.admin_name} onChange={e => setFormData({...formData, admin_name: e.target.value})} className="input-field" required />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                    <input type="email" value={formData.admin_email} onChange={e => setFormData({...formData, admin_email: e.target.value})}
-                      className="input-field" required />
+                    <input type="email" value={formData.admin_email} onChange={e => setFormData({...formData, admin_email: e.target.value})} className="input-field" required />
                   </div>
                 </div>
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
-                  <input type="password" value={formData.admin_password} onChange={e => setFormData({...formData, admin_password: e.target.value})}
-                    className="input-field" required />
+                  <input type="password" value={formData.admin_password} onChange={e => setFormData({...formData, admin_password: e.target.value})} className="input-field" required />
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancelar</button>
+                <button type="button" onClick={() => setShowCreateModal(false)} className="btn-secondary">Cancelar</button>
                 <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
                   {saving && <Loader2 className="animate-spin" size={16} />}
                   Crear Empresa
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {editingCompany && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Módulos de {editingCompany.name}</h2>
+                <p className="text-sm text-gray-500">Activa o desactiva módulos para esta empresa</p>
+              </div>
+              <button onClick={() => setEditingCompany(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                {AVAILABLE_MODULES.map(mod => {
+                  const active = editModules.includes(mod);
+                  return (
+                    <button key={mod} type="button" onClick={() => toggleEditModule(mod)}
+                      className={`flex items-center gap-2 p-3 rounded-lg text-sm border transition-all ${
+                        active
+                          ? 'bg-primary/10 border-primary text-primaryDark'
+                          : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}>
+                      {active ? <Check size={16} /> : <div className="w-4 h-4 rounded border border-gray-300" />}
+                      {MODULE_LABELS[mod]}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => setEditingCompany(null)} className="btn-secondary">Cancelar</button>
+                <button onClick={handleEditModules} disabled={saving} className="btn-primary flex items-center gap-2">
+                  {saving && <Loader2 className="animate-spin" size={16} />}
+                  Guardar Módulos
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

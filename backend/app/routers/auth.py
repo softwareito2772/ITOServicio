@@ -5,7 +5,7 @@ from datetime import timedelta
 from ..database import get_db
 from ..models import User, UserRole, Company, CompanyModule
 from ..schemas import UserCreate, UserResponse, UserLogin, Token
-from ..auth import verify_password, hash_password, create_access_token, get_current_user, get_company_data
+from ..auth import verify_password, hash_password, create_access_token, get_current_user, get_company_data, _role_str
 from ..config import settings
 
 router = APIRouter()
@@ -50,7 +50,9 @@ async def login(user_login: UserLogin, db: Session = Depends(get_db)):
     if user.company_id:
         company_data = get_company_data(db, user.company_id)
 
-    role_value = user.role.value if hasattr(user.role, 'value') else user.role
+    role_raw = user.role
+    role_value = role_raw.value if hasattr(role_raw, "value") else str(role_raw)
+    role_value = role_value.lower()
     company_id_value = user.company_id if user.company_id else None
 
     access_token = create_access_token(

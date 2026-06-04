@@ -4,7 +4,7 @@ from typing import List
 from ..database import get_db
 from ..models import User, UserRole
 from ..schemas import UserCreate, UserUpdate, UserResponse
-from ..auth import get_current_user, get_current_admin_user, get_current_super_admin, hash_password
+from ..auth import get_current_user, get_current_admin_user, get_current_super_admin, hash_password, _role_str
 
 router = APIRouter()
 
@@ -16,7 +16,7 @@ async def get_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
-    if current_user.role == "super_admin":
+    if _role_str(current_user) == "super_admin":
         users = db.query(User).offset(skip).limit(limit).all()
     else:
         users = db.query(User).filter(
@@ -35,7 +35,7 @@ async def get_user(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    if current_user.role != "super_admin" and user.company_id != current_user.company_id:
+    if _role_str(current_user) != "super_admin" and user.company_id != current_user.company_id:
         raise HTTPException(status_code=403, detail="Acceso denegado")
 
     return user
@@ -51,7 +51,7 @@ async def create_user(
     if db_user:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
 
-    if current_user.role == "super_admin":
+    if _role_str(current_user) == "super_admin":
         company_id = None
     else:
         company_id = current_user.company_id
@@ -80,7 +80,7 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    if current_user.role != "super_admin" and user.company_id != current_user.company_id:
+    if _role_str(current_user) != "super_admin" and user.company_id != current_user.company_id:
         raise HTTPException(status_code=403, detail="Acceso denegado")
 
     if user_update.name is not None:
@@ -109,7 +109,7 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    if current_user.role != "super_admin" and user.company_id != current_user.company_id:
+    if _role_str(current_user) != "super_admin" and user.company_id != current_user.company_id:
         raise HTTPException(status_code=403, detail="Acceso denegado")
 
     if user.id == current_user.id:

@@ -100,8 +100,15 @@ async def get_current_user(
     return user
 
 
+def _role_str(user) -> str:
+    r = user.role
+    val = r.value if hasattr(r, "value") else str(r)
+    return val.lower()
+
+
 async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role not in ("admin", "super_admin"):
+    role = _role_str(current_user)
+    if role not in ("admin", "super_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acceso denegado. Se requiere rol de administrador."
@@ -110,7 +117,8 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
 
 
 async def get_current_super_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role != "super_admin":
+    role = _role_str(current_user)
+    if role != "super_admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acceso denegado. Se requiere rol de super administrador."

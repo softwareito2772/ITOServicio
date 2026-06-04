@@ -91,7 +91,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
-    role = Column(SQLEnum(UserRole), default=UserRole.USER)
+    role = Column(String(20), default="user")
     avatar = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
