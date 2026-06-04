@@ -1,4 +1,4 @@
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime
 from .models import UserRole, ServiceLocation, EquipmentStatus, ArrivalCondition, WarrantyType, InventoryMovementType
@@ -83,12 +83,6 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
-
-    @model_validator(mode="after")
-    def normalize_role(self):
-        if self.role:
-            self.role = self.role.lower()
-        return self
 
 
 class UserLogin(BaseModel):
