@@ -222,6 +222,8 @@ export const companiesAPI = {
   updateModules: (id: number, modules: string[]) => api.put(`/companies/${id}/modules`, { modules }),
   getAvailableModules: () => api.get('/companies/available-modules'),
   getUsers: (id: number) => api.get(`/companies/${id}/users`),
+  updateMySettings: (data: any) => api.put('/companies/my/settings', data),
+  updateMyModules: (modules: string[]) => api.put('/companies/my/modules', { modules }),
 };
 
 export const reportsAPI = {

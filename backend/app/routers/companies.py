@@ -201,3 +201,84 @@ async def get_company_users(
 ):
     users = db.query(User).filter(User.company_id == company_id).all()
     return users
+
+
+@router.put("/my/settings", response_model=CompanyWithModules)
+async def update_my_company(
+    data: CompanyUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    if not current_user.company_id:
+        raise HTTPException(status_code=400, detail="No tienes empresa asignada")
+
+    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(company, key, value)
+
+    db.commit()
+    db.refresh(company)
+
+    modules = [m.module_name for m in db.query(CompanyModule).filter(
+        CompanyModule.company_id == company.id,
+        CompanyModule.is_enabled == True
+    ).all()]
+
+    return CompanyWithModules(
+        id=company.id,
+        name=company.name,
+        slug=company.slug,
+        email_domain=company.email_domain,
+        primary_color=company.primary_color,
+        secondary_color=company.secondary_color,
+        description=company.description,
+        logo_url=company.logo_url,
+        is_active=company.is_active,
+        created_at=company.created_at,
+        modules=modules,
+    )
+
+
+@router.put("/my/modules", response_model=CompanyWithModules)
+async def update_my_modules(
+    data: CompanyModuleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    if not current_user.company_id:
+        raise HTTPException(status_code=400, detail="No tienes empresa asignada")
+
+    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    db.query(CompanyModule).filter(CompanyModule.company_id == company.id).delete()
+
+    for mod in data.modules:
+        if mod in AVAILABLE_MODULES:
+            cm = CompanyModule(company_id=company.id, module_name=mod, is_enabled=True)
+            db.add(cm)
+
+    db.commit()
+
+    modules = [m.module_name for m in db.query(CompanyModule).filter(
+        CompanyModule.company_id == company.id,
+        CompanyModule.is_enabled == True
+    ).all()]
+
+    return CompanyWithModules(
+        id=company.id,
+        name=company.name,
+        slug=company.slug,
+        email_domain=company.email_domain,
+        primary_color=company.primary_color,
+        secondary_color=company.secondary_color,
+        description=company.description,
+        logo_url=company.logo_url,
+        is_active=company.is_active,
+        created_at=company.created_at,
+        modules=modules,
+    )

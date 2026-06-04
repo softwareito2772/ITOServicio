@@ -1,11 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, User, Trash2, Plus, Edit, Shield, Sun, Moon, Palette, Check } from 'lucide-react';
-import { authAPI, usersAPI } from '@/lib/api';
+import { Loader2, User, Trash2, Plus, Edit, Shield, Sun, Moon, Palette, Check, Building2 } from 'lucide-react';
+import { authAPI, usersAPI, companiesAPI } from '@/lib/api';
 import { toast } from 'sonner';
 
-interface UserData { id?: number; name: string; email: string; role: string; }
+const ALL_MODULES = [
+  'ventas', 'mantenimiento', 'reparaciones', 'equipos',
+  'productos', 'clientes', 'garantias', 'reportes', 'inventario'
+];
+
+const MODULE_LABELS: Record<string, string> = {
+  ventas: 'Ventas',
+  mantenimiento: 'Mantenimiento',
+  reparaciones: 'Reparaciones',
+  equipos: 'Equipos/Vehículos',
+  productos: 'Productos',
+  clientes: 'Clientes',
+  garantias: 'Garantías',
+  reportes: 'Reportes',
+  inventario: 'Inventario',
+};
+
+interface UserData { id?: number; name: string; email: string; role: string; company_id?: number; }
 interface AllUser { id: number; name: string; email: string; role: string; is_active: boolean; created_at: string; }
 
 export default function SettingsPage() {
@@ -17,12 +34,21 @@ export default function SettingsPage() {
   const [editUser, setEditUser] = useState<AllUser | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user' });
   const [currentTheme, setCurrentTheme] = useState('theme-light');
+  const [companyData, setCompanyData] = useState({
+    name: '', logo_url: '', primary_color: '#7C9CBF', secondary_color: '#B4C7E7',
+    description: '', email_domain: '',
+  });
+  const [companyModules, setCompanyModules] = useState<string[]>([]);
+  const [savingCompany, setSavingCompany] = useState(false);
 
   useEffect(() => { setCurrentTheme(document.documentElement.className || 'theme-light'); }, []);
   useEffect(() => { loadData(); }, []);
   useEffect(() => {
     if (window.location.hash === '#users') {
       setTimeout(() => document.getElementById('users')?.scrollIntoView({ behavior: 'smooth' }), 300);
+    }
+    if (window.location.hash === '#company') {
+      setTimeout(() => document.getElementById('company')?.scrollIntoView({ behavior: 'smooth' }), 300);
     }
   }, [loading]);
 
@@ -36,6 +62,9 @@ export default function SettingsPage() {
         if (u.role === 'admin') {
           const res = await usersAPI.getAll();
           setAllUsers(res.data);
+          if (u.company_id) {
+            loadCompanySettings(u.company_id);
+          }
         }
       }
     } catch (error) { toast.error('Error al cargar'); }
@@ -60,6 +89,65 @@ export default function SettingsPage() {
         toast.error('Error');
       }
     }
+  };
+
+  const loadCompanySettings = async (companyId: number) => {
+    try {
+      const res = await companiesAPI.getById(companyId);
+      const c = res.data;
+      setCompanyData({
+        name: c.name || '',
+        logo_url: c.logo_url || '',
+        primary_color: c.primary_color || '#7C9CBF',
+        secondary_color: c.secondary_color || '#B4C7E7',
+        description: c.description || '',
+        email_domain: c.email_domain || '',
+      });
+      setCompanyModules(c.modules || []);
+    } catch {}
+  };
+
+  const handleSaveCompany = async () => {
+    setSavingCompany(true);
+    try {
+      await companiesAPI.updateMySettings(companyData);
+      const companyStr = localStorage.getItem('company');
+      if (companyStr) {
+        const c = JSON.parse(companyStr);
+        c.name = companyData.name;
+        c.logo_url = companyData.logo_url;
+        c.primary_color = companyData.primary_color;
+        c.secondary_color = companyData.secondary_color;
+        localStorage.setItem('company', JSON.stringify(c));
+        document.documentElement.style.setProperty('--primary', companyData.primary_color);
+        document.documentElement.style.setProperty('--secondary', companyData.secondary_color);
+      }
+      toast.success('Empresa actualizada');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Error al guardar');
+    } finally { setSavingCompany(false); }
+  };
+
+  const handleSaveModules = async () => {
+    setSavingCompany(true);
+    try {
+      await companiesAPI.updateMyModules(companyModules);
+      const companyStr = localStorage.getItem('company');
+      if (companyStr) {
+        const c = JSON.parse(companyStr);
+        c.modules = companyModules;
+        localStorage.setItem('company', JSON.stringify(c));
+      }
+      toast.success('Módulos actualizados');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Error al guardar');
+    } finally { setSavingCompany(false); }
+  };
+
+  const toggleModule = (mod: string) => {
+    setCompanyModules(prev =>
+      prev.includes(mod) ? prev.filter(m => m !== mod) : [...prev, mod]
+    );
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -104,14 +192,13 @@ export default function SettingsPage() {
   };
 
   const resetForm = () => { setEditUser(null); setFormData({ name: '', email: '', password: '', role: 'user' }); };
-
   const openEditUser = (u: AllUser) => { setEditUser(u); setFormData({ name: u.name, email: u.email, password: '', role: u.role }); setShowUserModal(true); };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={32} /></div>;
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      <div><h1 className="text-2xl font-bold text-gray-800">Configuración</h1><p className="text-gray-500">Gestiona tu cuenta y usuarios</p></div>
+      <div><h1 className="text-2xl font-bold text-gray-800">Configuración</h1><p className="text-gray-500">Gestiona tu cuenta, empresa y usuarios</p></div>
 
       <div className="card">
         <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><Palette size={20} /> Tema</h2>
@@ -163,6 +250,70 @@ export default function SettingsPage() {
           <button type="submit" className="btn-primary">Guardar Cambios</button>
         </form>
       </div>
+
+      {isAdmin && (
+        <div id="company" className="card">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><Building2 size={20} /> Mi Empresa</h2>
+          <div className="space-y-4 max-w-lg">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la empresa</label>
+              <input type="text" value={companyData.name} onChange={e => setCompanyData({...companyData, name: e.target.value})} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+              <textarea value={companyData.description} onChange={e => setCompanyData({...companyData, description: e.target.value})} className="input-field" rows={2} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+              <input type="text" value={companyData.logo_url} onChange={e => setCompanyData({...companyData, logo_url: e.target.value})} className="input-field" placeholder="https://ejemplo.com/logo.png" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dominio de email</label>
+              <input type="text" value={companyData.email_domain} onChange={e => setCompanyData({...companyData, email_domain: e.target.value})} className="input-field" placeholder="miempresa.com" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Color primario</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={companyData.primary_color} onChange={e => setCompanyData({...companyData, primary_color: e.target.value})} className="w-10 h-10 rounded border" />
+                  <input type="text" value={companyData.primary_color} onChange={e => setCompanyData({...companyData, primary_color: e.target.value})} className="input-field flex-1" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Color secundario</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={companyData.secondary_color} onChange={e => setCompanyData({...companyData, secondary_color: e.target.value})} className="w-10 h-10 rounded border" />
+                  <input type="text" value={companyData.secondary_color} onChange={e => setCompanyData({...companyData, secondary_color: e.target.value})} className="input-field flex-1" />
+                </div>
+              </div>
+            </div>
+            <button onClick={handleSaveCompany} disabled={savingCompany} className="btn-primary flex items-center gap-2">
+              {savingCompany && <Loader2 className="animate-spin" size={16} />}
+              Guardar Empresa
+            </button>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="font-semibold text-gray-800 mb-3">Módulos habilitados</h3>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {ALL_MODULES.map(mod => (
+                <button key={mod} type="button" onClick={() => toggleModule(mod)}
+                  className={`p-2 rounded-lg text-sm border transition-all ${
+                    companyModules.includes(mod)
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-primary'
+                  }`}>
+                  {MODULE_LABELS[mod]}
+                </button>
+              ))}
+            </div>
+            <button onClick={handleSaveModules} disabled={savingCompany} className="btn-primary flex items-center gap-2">
+              {savingCompany && <Loader2 className="animate-spin" size={16} />}
+              Guardar Módulos
+            </button>
+          </div>
+        </div>
+      )}
 
       {isAdmin && (
         <div id="users" className="card">
