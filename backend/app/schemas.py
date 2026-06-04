@@ -133,7 +133,7 @@ class ClientResponse(ClientBase):
     id: int
     is_active: bool
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -159,7 +159,7 @@ class CategoryResponse(CategoryBase):
     id: int
     is_active: bool
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -194,7 +194,7 @@ class ProductResponse(ProductBase):
     id: int
     is_active: bool
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     category: Optional[CategoryResponse] = None
 
     class Config:
@@ -216,7 +216,7 @@ class InventoryMovementResponse(InventoryMovementBase):
     id: int
     created_by: Optional[int] = None
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     product: Optional[ProductResponse] = None
 
     class Config:
@@ -262,7 +262,7 @@ class SaleResponse(SaleBase):
     sale_date: date
     created_by: Optional[int] = None
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     client: Optional[ClientResponse] = None
     items: List[SaleItemResponse] = []
 
@@ -305,7 +305,7 @@ class EquipmentResponse(EquipmentBase):
     status: EquipmentStatus
     arrival_date: date
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     client: Optional[ClientResponse] = None
     category: Optional[CategoryResponse] = None
 
@@ -325,7 +325,7 @@ class MaintenanceImageCreate(MaintenanceImageBase):
 
 class MaintenanceImageResponse(MaintenanceImageBase):
     id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -361,7 +361,7 @@ class MaintenanceResponse(MaintenanceBase):
     id: int
     technician_id: Optional[int] = None
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     equipment: Optional[EquipmentResponse] = None
     technician: Optional[UserResponse] = None
     images: List[MaintenanceImageResponse] = []
@@ -382,7 +382,7 @@ class RepairImageCreate(RepairImageBase):
 
 class RepairImageResponse(RepairImageBase):
     id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -422,7 +422,7 @@ class RepairResponse(RepairBase):
     id: int
     technician_id: Optional[int] = None
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     equipment: Optional[EquipmentResponse] = None
     technician: Optional[UserResponse] = None
     images: List[RepairImageResponse] = []
@@ -456,7 +456,7 @@ class WarrantyResponse(WarrantyBase):
     id: int
     status: str
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     equipment: Optional[EquipmentResponse] = None
     repair: Optional[RepairResponse] = None
     maintenance: Optional[MaintenanceResponse] = None
@@ -484,7 +484,7 @@ class ArrivalStatusUpdate(BaseModel):
 class ArrivalStatusResponse(ArrivalStatusBase):
     id: int
     is_active: bool
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
