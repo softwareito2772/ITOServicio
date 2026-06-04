@@ -79,7 +79,7 @@ class UserResponse(UserBase):
     avatar: Optional[str] = None
     is_active: bool
     company_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
