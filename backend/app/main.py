@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import engine, Base
+from .models import User
 from .routers import auth, users, clients, categories, products, inventory, sales, equipment, maintenance, repairs, warranties, reports, dashboard, arrival_statuses, companies
 
 Base.metadata.create_all(bind=engine)
@@ -40,6 +41,39 @@ app.include_router(arrival_statuses.router, prefix="/api/arrival-statuses", tags
 @app.get("/")
 async def root():
     return {"message": "ITO Servicios API", "version": "2.0.0"}
+
+
+@app.get("/api/debug/superadmin")
+async def debug_superadmin():
+    import traceback
+    try:
+        from .database import SessionLocal
+        db = SessionLocal()
+        user = db.query(User).filter(User.email == "superadmin@itoservicio.com").first()
+        if not user:
+            return {"error": "user not found"}
+        
+        role_raw = user.role
+        role_type = type(role_raw).__name__
+        role_value = role_raw.value if hasattr(role_raw, 'value') else str(role_raw)
+        
+        result = {
+            "email": user.email,
+            "role_type": role_type,
+            "role_value": role_value,
+            "company_id": user.company_id,
+            "is_active": user.is_active,
+        }
+        
+        from .auth import hash_password, verify_password
+        test_hash = hash_password("test123")
+        result["hash_works"] = verify_password("test123", test_hash)
+        result["superadmin_password_works"] = verify_password("$Jafet2213$", user.password_hash)
+        
+        db.close()
+        return result
+    except Exception as e:
+        return {"error": str(e), "traceback": traceback.format_exc()}
 
 
 @app.get("/api/health")
