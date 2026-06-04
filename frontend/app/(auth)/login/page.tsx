@@ -48,34 +48,33 @@ export default function LoginPage() {
 
       localStorage.setItem('token', data.access_token);
 
-      const userResponse = await authAPI.getMe();
-      localStorage.setItem('user', JSON.stringify(userResponse.data));
+      try {
+        const userResponse = await authAPI.getMe();
+        localStorage.setItem('user', JSON.stringify(userResponse.data));
+      } catch {
+        localStorage.setItem('user', JSON.stringify({
+          id: 0,
+          email: email,
+          name: email,
+          role: data.user_role,
+          company_id: data.company_id,
+        }));
+      }
 
       if (data.company_id) {
-        const companyData = {
+        localStorage.setItem('company', JSON.stringify({
           id: data.company_id,
           name: data.company_name,
           logo_url: data.company_logo,
           primary_color: data.company_primary_color,
           secondary_color: data.company_secondary_color,
           modules: data.company_modules || [],
-        };
-        localStorage.setItem('company', JSON.stringify(companyData));
-
-        if (companyData.primary_color) {
-          document.documentElement.style.setProperty('--primary', companyData.primary_color);
-        }
-        if (companyData.secondary_color) {
-          document.documentElement.style.setProperty('--secondary', companyData.secondary_color);
-        }
+        }));
       }
 
       toast.success('¡Bienvenido!');
-      if (data.user_role === 'super_admin') {
-        router.push('/super-admin');
-      } else {
-        router.push('/dashboard');
-      }
+      const target = data.user_role === 'super_admin' ? '/super-admin' : '/dashboard';
+      window.location.href = target;
     } catch (error: any) {
       const detail = error.response?.data?.detail;
       if (Array.isArray(detail)) {
