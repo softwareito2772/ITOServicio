@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from .config import settings
 from .database import engine, Base
 from .routers import auth, users, clients, categories, products, inventory, sales, equipment, maintenance, repairs, warranties, reports, dashboard, arrival_statuses, companies
@@ -8,9 +9,17 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="API para el sistema de gestión de servicios ITO",
-    version="2.0.1"
+    description="API para el sistema de servicios ITO",
+    version="2.1.0"
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "type": type(exc).__name__, "trace": traceback.format_exc()[-500:]}
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,7 +48,7 @@ app.include_router(arrival_statuses.router, prefix="/api/arrival-statuses", tags
 
 @app.get("/")
 async def root():
-    return {"message": "ITO Servicios API", "version": "2.0.0"}
+    return {"message": "ITO Servicios API", "version": "2.1.0"}
 
 
 @app.get("/api/health")
