@@ -298,7 +298,7 @@ export default function RepairsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Partes/Repuestos usados</label>
                 <textarea value={formData.parts_used} onChange={e => setFormData({...formData, parts_used: e.target.value})} className="input-field" rows={2} placeholder="Ej: Pantalla nueva, bateria换了等" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Costo Total (MXN)</label>
                   <input type="number" step="0.01" value={formData.total_cost} onChange={e => setFormData({...formData, total_cost: e.target.value})} className="input-field" />
@@ -311,7 +311,7 @@ export default function RepairsPage() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                   <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="input-field">
@@ -333,7 +333,7 @@ export default function RepairsPage() {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Antes (al llegar)</label>
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">

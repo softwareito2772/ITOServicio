@@ -121,7 +121,7 @@ export default function SalesPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Productos</label>
                 {items.map((item, index) => (
-                  <div key={index} className="flex gap-2 mb-2">
+                  <div key={index} className="flex flex-col sm:flex-row gap-2 mb-2">
                     <select value={item.product_id} onChange={e => handleItemChange(index, 'product_id', e.target.value)} className="input-field flex-1" required>
                       <option value="">Producto</option>
                       {products.map(p => <option key={p.id} value={p.id}>{p.name} - ${p.price}</option>)}

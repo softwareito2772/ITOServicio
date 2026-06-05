@@ -271,7 +271,7 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Dominio de email</label>
               <input type="text" value={companyData.email_domain} onChange={e => setCompanyData({...companyData, email_domain: e.target.value})} className="input-field" placeholder="miempresa.com" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Color primario</label>
                 <div className="flex items-center gap-2">
@@ -295,7 +295,7 @@ export default function SettingsPage() {
 
           <div className="mt-6 pt-6 border-t border-gray-200">
             <h3 className="font-semibold text-gray-800 mb-3">Módulos habilitados</h3>
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
               {ALL_MODULES.map(mod => (
                 <button key={mod} type="button" onClick={() => toggleModule(mod)}
                   className={`p-2 rounded-lg text-sm border transition-all ${

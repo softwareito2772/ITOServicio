@@ -183,14 +183,14 @@ export default function SuperAdminPage() {
       )}
 
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto">
           <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-800">Nueva Empresa</h2>
               <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                   <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="input-field" required />
@@ -212,7 +212,7 @@ export default function SuperAdminPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
                 <input type="text" value={formData.logo_url} onChange={e => setFormData({...formData, logo_url: e.target.value})} className="input-field" placeholder="https://ejemplo.com/logo.png" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Color primario</label>
                   <div className="flex items-center gap-2">
@@ -230,7 +230,7 @@ export default function SuperAdminPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Módulos</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {AVAILABLE_MODULES.map(mod => (
                     <button key={mod} type="button" onClick={() => toggleModule(mod)}
                       className={`p-2 rounded-lg text-sm border transition-all ${
@@ -245,7 +245,7 @@ export default function SuperAdminPage() {
               </div>
               <div className="border-t border-gray-200 pt-4">
                 <h3 className="font-bold text-gray-800 mb-3">Administrador de la empresa</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                     <input type="text" value={formData.admin_name} onChange={e => setFormData({...formData, admin_name: e.target.value})} className="input-field" required />
@@ -273,8 +273,8 @@ export default function SuperAdminPage() {
       )}
 
       {editingCompany && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 pt-8 overflow-y-auto">
+          <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-gray-800">Módulos de {editingCompany.name}</h2>
@@ -283,7 +283,7 @@ export default function SuperAdminPage() {
               <button onClick={() => setEditingCompany(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVAILABLE_MODULES.map(mod => {
                   const active = editModules.includes(mod);
                   return (

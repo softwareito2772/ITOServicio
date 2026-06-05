@@ -371,7 +371,7 @@ export default function MaintenancePage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Registro *</label>
                   <input type="date" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="input-field" required />
@@ -392,7 +392,7 @@ export default function MaintenancePage() {
                 <textarea value={formData.technician_notes} onChange={e => setFormData({...formData, technician_notes: e.target.value})} className="input-field" rows={2} />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Lugar</label>
                   <select value={formData.service_location} onChange={e => setFormData({...formData, service_location: e.target.value})} className="input-field">
@@ -408,7 +408,7 @@ export default function MaintenancePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Costo del Mantenimiento ($)</label>
                   <div className="relative">

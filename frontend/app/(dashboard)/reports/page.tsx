@@ -102,7 +102,7 @@ export default function ReportsPage() {
             )}
             {reportType === 'inventory' && (
               <>
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                   <div className="bg-primary/10 p-4 rounded-lg"><p className="text-sm text-gray-500">Total Productos</p><p className="text-2xl font-bold text-primary">{reportData.total_products || 0}</p></div>
                   <div className="bg-warning/10 p-4 rounded-lg"><p className="text-sm text-gray-500">Stock Bajo</p><p className="text-2xl font-bold text-warning">{reportData.low_stock_count || 0}</p></div>
                 </div>
@@ -115,7 +115,7 @@ export default function ReportsPage() {
             )}
             {reportType === 'repairs' && (
               <>
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                   <div className="bg-primary/10 p-4 rounded-lg"><p className="text-sm text-gray-500">Total Reparaciones</p><p className="text-2xl font-bold text-primary">{reportData.count || 0}</p></div>
                   <div className="bg-success/10 p-4 rounded-lg"><p className="text-sm text-gray-500">Ganancias</p><p className="text-2xl font-bold text-success">{formatCurrency(reportData.total_cost || 0)}</p></div>
                 </div>
