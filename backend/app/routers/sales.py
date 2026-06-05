@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import date
 from ..database import get_db
-from ..models import Sale, SaleItem, Product, Client, User, InventoryMovementType
+from ..models import Sale, SaleItem, Product, Client, User
 from ..schemas import SaleCreate, SaleUpdate, SaleResponse
 from ..auth import get_current_user
 
@@ -73,7 +73,7 @@ async def create_sale(
         
         product.stock -= item.quantity
         
-        movement = InventoryMovementType.EXIT
+        movement = "salida"
         db_movement = type('InventoryMovement', (), {
             'product_id': product.id,
             'quantity': item.quantity,

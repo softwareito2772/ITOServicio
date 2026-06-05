@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from ..database import get_db
-from ..models import Repair, RepairImage, Equipment, Warranty, User, EquipmentStatus, WarrantyType
+from ..models import Repair, RepairImage, Equipment, Warranty, User
 from ..schemas import RepairResponse
 from ..auth import get_current_user
 from ..cloudinary_config import upload_image
@@ -92,7 +92,7 @@ async def create_repair(
         service_location=service_location,
         start_date=start,
         end_date=end,
-        status=EquipmentStatus(status),
+        status=status,
         company_id=current_user.company_id
     )
     db.add(db_repair)
@@ -101,16 +101,16 @@ async def create_repair(
     if warranty_months:
         months = int(warranty_months)
         warranty_type_map = {
-            1: WarrantyType.ONE_MONTH,
-            3: WarrantyType.THREE_MONTHS,
-            6: WarrantyType.SIX_MONTHS,
-            12: WarrantyType.ONE_YEAR,
-            24: WarrantyType.TWO_YEARS,
-            60: WarrantyType.FIVE_YEARS,
-            84: WarrantyType.SEVEN_YEARS,
-            120: WarrantyType.TEN_YEARS
+            1: "1 mes",
+            3: "3 meses",
+            6: "6 meses",
+            12: "1 año",
+            24: "2 años",
+            60: "5 años",
+            84: "7 años",
+            120: "10 años"
         }
-        warranty_type = warranty_type_map.get(months, WarrantyType.ONE_MONTH)
+        warranty_type_str = warranty_type_map.get(months, "1 mes")
         
         if months >= 24:
             end_warranty = start + relativedelta(years=months // 12)
@@ -120,7 +120,7 @@ async def create_repair(
         db_warranty = Warranty(
             equipment_id=equipment_id,
             repair_id=db_repair.id,
-            warranty_type=warranty_type,
+            warranty_type=warranty_type_str,
             start_date=start,
             end_date=end_warranty,
             status="active"
@@ -193,7 +193,7 @@ async def update_repair(
     if end_date:
         repair.end_date = date.fromisoformat(end_date)
     if status:
-        repair.status = EquipmentStatus(status)
+        repair.status = status
     
     async def save_images(img_list, img_type):
         for img in img_list:
@@ -215,16 +215,16 @@ async def update_repair(
     if warranty_months and not repair.warranty:
         months = int(warranty_months)
         warranty_type_map = {
-            1: WarrantyType.ONE_MONTH,
-            3: WarrantyType.THREE_MONTHS,
-            6: WarrantyType.SIX_MONTHS,
-            12: WarrantyType.ONE_YEAR,
-            24: WarrantyType.TWO_YEARS,
-            60: WarrantyType.FIVE_YEARS,
-            84: WarrantyType.SEVEN_YEARS,
-            120: WarrantyType.TEN_YEARS
+            1: "1 mes",
+            3: "3 meses",
+            6: "6 meses",
+            12: "1 año",
+            24: "2 años",
+            60: "5 años",
+            84: "7 años",
+            120: "10 años"
         }
-        warranty_type = warranty_type_map.get(months, WarrantyType.ONE_MONTH)
+        warranty_type_str = warranty_type_map.get(months, "1 mes")
         start = repair.start_date or date.today()
         if months >= 24:
             end_warranty = start + relativedelta(years=months // 12)
@@ -233,7 +233,7 @@ async def update_repair(
         db_warranty = Warranty(
             equipment_id=repair.equipment_id,
             repair_id=repair_id,
-            warranty_type=warranty_type,
+            warranty_type=warranty_type_str,
             start_date=start,
             end_date=end_warranty,
             status="active"

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime
-from .models import UserRole, ServiceLocation, EquipmentStatus, ArrivalCondition, WarrantyType, InventoryMovementType
+
 
 
 AVAILABLE_MODULES = [
@@ -62,14 +62,14 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-    role: UserRole = UserRole.USER
+    role: str = "user"
 
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
-    role: Optional[UserRole] = None
+    role: Optional[str] = None
     avatar: Optional[str] = None
 
 
@@ -204,7 +204,7 @@ class ProductResponse(ProductBase):
 class InventoryMovementBase(BaseModel):
     product_id: int
     quantity: int
-    movement_type: InventoryMovementType
+    movement_type: str
     reason: Optional[str] = None
 
 
@@ -280,7 +280,7 @@ class EquipmentBase(BaseModel):
     description: Optional[str] = None
     purchase_date: Optional[date] = None
     manufacturer_warranty: Optional[str] = None
-    service_location: ServiceLocation = ServiceLocation.LOCAL
+    service_location: str = "local"
 
 
 class EquipmentCreate(EquipmentBase):
@@ -296,13 +296,13 @@ class EquipmentUpdate(BaseModel):
     description: Optional[str] = None
     purchase_date: Optional[date] = None
     manufacturer_warranty: Optional[str] = None
-    service_location: Optional[ServiceLocation] = None
-    status: Optional[EquipmentStatus] = None
+    service_location: Optional[str] = None
+    status: Optional[str] = None
 
 
 class EquipmentResponse(EquipmentBase):
     id: int
-    status: EquipmentStatus
+    status: str
     arrival_date: date
     company_id: Optional[int] = None
     created_at: Optional[datetime] = None
@@ -335,12 +335,12 @@ class MaintenanceBase(BaseModel):
     equipment_id: int
     description: str
     technician_notes: Optional[str] = None
-    service_location: ServiceLocation = ServiceLocation.LOCAL
+    service_location: str = "local"
     start_date: date = None
     end_date: Optional[date] = None
     next_maintenance_date: Optional[date] = None
     cost: float = 0
-    status: EquipmentStatus = EquipmentStatus.PENDING
+    status: str = "pending"
 
 
 class MaintenanceCreate(MaintenanceBase):
@@ -350,11 +350,11 @@ class MaintenanceCreate(MaintenanceBase):
 class MaintenanceUpdate(BaseModel):
     description: Optional[str] = None
     technician_notes: Optional[str] = None
-    service_location: Optional[ServiceLocation] = None
+    service_location: Optional[str] = None
     end_date: Optional[date] = None
     next_maintenance_date: Optional[date] = None
     cost: Optional[float] = None
-    status: Optional[EquipmentStatus] = None
+    status: Optional[str] = None
 
 
 class MaintenanceResponse(MaintenanceBase):
@@ -390,16 +390,16 @@ class RepairImageResponse(RepairImageBase):
 
 class RepairBase(BaseModel):
     equipment_id: int
-    arrival_condition: ArrivalCondition
+    arrival_condition: str
     arrival_condition_other: Optional[str] = None
     diagnosis: Optional[str] = None
     solution: Optional[str] = None
     parts_used: Optional[str] = None
     total_cost: float = 0
-    service_location: ServiceLocation = ServiceLocation.LOCAL
+    service_location: str = "local"
     start_date: date = None
     end_date: Optional[date] = None
-    status: EquipmentStatus = EquipmentStatus.PENDING
+    status: str = "pending"
 
 
 class RepairCreate(RepairBase):
@@ -407,15 +407,15 @@ class RepairCreate(RepairBase):
 
 
 class RepairUpdate(BaseModel):
-    arrival_condition: Optional[ArrivalCondition] = None
+    arrival_condition: Optional[str] = None
     arrival_condition_other: Optional[str] = None
     diagnosis: Optional[str] = None
     solution: Optional[str] = None
     parts_used: Optional[str] = None
     total_cost: Optional[float] = None
-    service_location: Optional[ServiceLocation] = None
+    service_location: Optional[str] = None
     end_date: Optional[date] = None
-    status: Optional[EquipmentStatus] = None
+    status: Optional[str] = None
 
 
 class RepairResponse(RepairBase):
@@ -435,7 +435,7 @@ class WarrantyBase(BaseModel):
     equipment_id: int
     repair_id: Optional[int] = None
     maintenance_id: Optional[int] = None
-    warranty_type: WarrantyType
+    warranty_type: str
     start_date: date = None
     end_date: date = None
     notes: Optional[str] = None
@@ -446,7 +446,7 @@ class WarrantyCreate(WarrantyBase):
 
 
 class WarrantyUpdate(BaseModel):
-    warranty_type: Optional[WarrantyType] = None
+    warranty_type: Optional[str] = None
     end_date: Optional[date] = None
     status: Optional[str] = None
     notes: Optional[str] = None

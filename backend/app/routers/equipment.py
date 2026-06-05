@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date
 from ..database import get_db
-from ..models import Equipment, Client, User, EquipmentStatus
+from ..models import Equipment, Client, User
 from ..schemas import EquipmentCreate, EquipmentUpdate, EquipmentResponse
 from ..auth import get_current_user
 from ..cloudinary_config import upload_image
@@ -17,7 +17,7 @@ async def get_equipment(
     limit: int = 100,
     client_id: int = None,
     category_id: int = None,
-    status: EquipmentStatus = None,
+    status: str = None,
     search: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -105,7 +105,7 @@ async def delete_equipment(
     if current_user.company_id and equipment.company_id != current_user.company_id:
         raise HTTPException(status_code=403, detail="No autorizado")
     
-    equipment.status = EquipmentStatus.DELIVERED
+    equipment.status = "delivered"
     db.commit()
     return {"message": "Equipo eliminado correctamente"}
 

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
-from ..models import Company, CompanyModule, User, UserRole, AVAILABLE_MODULES
+from ..models import Company, CompanyModule, User, AVAILABLE_MODULES
 from ..schemas import CompanyCreate, CompanyUpdate, CompanyResponse, CompanyWithModules, CompanyModuleUpdate, UserResponse
 from ..auth import get_current_super_admin, get_current_admin_user, hash_password, get_company_data
 
@@ -137,7 +137,7 @@ async def create_company(
             db.add(CompanyModule(company_id=company.id, module_name=mod, is_enabled=True))
     admin_user = User(
         email=data.admin_email, password_hash=hash_password(data.admin_password),
-        name=data.admin_name, role=UserRole.ADMIN, company_id=company.id,
+        name=data.admin_name, role="admin", company_id=company.id,
     )
     db.add(admin_user)
     db.commit()

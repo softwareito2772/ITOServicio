@@ -8,7 +8,7 @@ from openpyxl import Workbook
 from io import BytesIO
 from fastapi.responses import StreamingResponse
 from ..database import get_db
-from ..models import Client, Equipment, Product, Sale, Maintenance, Repair, Warranty, User, EquipmentStatus
+from ..models import Client, Equipment, Product, Sale, Maintenance, Repair, Warranty, User
 from ..auth import get_current_user
 
 router = APIRouter()
@@ -53,7 +53,7 @@ async def report_maintenance(
     start_date: date = None,
     end_date: date = None,
     technician_id: int = None,
-    status: EquipmentStatus = None,
+    status: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -90,7 +90,7 @@ async def report_repairs(
     start_date: date = None,
     end_date: date = None,
     technician_id: int = None,
-    status: EquipmentStatus = None,
+    status: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

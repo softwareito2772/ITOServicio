@@ -109,7 +109,7 @@ export default function MaintenancePage() {
     }
   };
 
-  const API_BASE = typeof window !== 'undefined' ? `http://${window.location.hostname}:8000/api` : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api');
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
   const fetchAPI = async (url: string, method: string, formData: FormData) => {
     const token = localStorage.getItem('token');
     const res = await fetch(`${API_BASE}${url}`, {

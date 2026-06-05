@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import date
 from ..database import get_db
-from ..models import InventoryMovement, Product, User, InventoryMovementType
+from ..models import InventoryMovement, Product, User
 from ..schemas import InventoryMovementCreate, InventoryMovementResponse
 from ..auth import get_current_user
 
@@ -37,9 +37,9 @@ async def create_movement(
     if not product:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     
-    if movement.movement_type == InventoryMovementType.ENTRY:
+    if movement.movement_type == "entrada":
         product.stock += movement.quantity
-    elif movement.movement_type == InventoryMovementType.EXIT:
+    elif movement.movement_type == "salida":
         if product.stock < movement.quantity:
             raise HTTPException(status_code=400, detail="Stock insuficiente")
         product.stock -= movement.quantity

@@ -4,7 +4,7 @@ from sqlalchemy import func
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 from ..database import get_db
-from ..models import Client, Equipment, Product, Sale, Maintenance, Repair, Warranty, User, EquipmentStatus
+from ..models import Client, Equipment, Product, Sale, Maintenance, Repair, Warranty, User
 from ..schemas import DashboardStats
 from ..auth import get_current_user
 

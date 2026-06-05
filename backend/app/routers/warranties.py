@@ -4,23 +4,23 @@ from typing import List
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from ..database import get_db
-from ..models import Warranty, Equipment, User, WarrantyType
+from ..models import Warranty, Equipment, User
 from ..schemas import WarrantyCreate, WarrantyUpdate, WarrantyResponse
 from ..auth import get_current_user
 
 router = APIRouter()
 
 
-def calculate_end_date(start_date: date, warranty_type: WarrantyType) -> date:
+def calculate_end_date(start_date: date, warranty_type: str) -> date:
     months_map = {
-        WarrantyType.ONE_MONTH: 1,
-        WarrantyType.THREE_MONTHS: 3,
-        WarrantyType.SIX_MONTHS: 6,
-        WarrantyType.ONE_YEAR: 12,
-        WarrantyType.TWO_YEARS: 24,
-        WarrantyType.FIVE_YEARS: 60,
-        WarrantyType.SEVEN_YEARS: 84,
-        WarrantyType.TEN_YEARS: 120
+        "1 mes": 1,
+        "3 meses": 3,
+        "6 meses": 6,
+        "1 año": 12,
+        "2 años": 24,
+        "5 años": 60,
+        "7 años": 84,
+        "10 años": 120
     }
     months = months_map.get(warranty_type, 1)
     

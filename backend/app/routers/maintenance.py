@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from ..database import get_db
-from ..models import Maintenance, MaintenanceImage, Equipment, User, EquipmentStatus, Warranty, WarrantyType
+from ..models import Maintenance, MaintenanceImage, Equipment, User, Warranty
 from ..schemas import MaintenanceResponse
 from ..auth import get_current_user
 from ..cloudinary_config import upload_image
@@ -92,7 +92,7 @@ async def create_maintenance(
         end_date=end,
         next_maintenance_date=next_date,
         cost=cost,
-        status=EquipmentStatus(status),
+        status=status,
         company_id=current_user.company_id
     )
     db.add(db_maintenance)
@@ -118,16 +118,16 @@ async def create_maintenance(
     if warranty_months:
         months = int(warranty_months)
         warranty_type_map = {
-            1: WarrantyType.ONE_MONTH,
-            3: WarrantyType.THREE_MONTHS,
-            6: WarrantyType.SIX_MONTHS,
-            12: WarrantyType.ONE_YEAR,
-            24: WarrantyType.TWO_YEARS,
-            60: WarrantyType.FIVE_YEARS,
-            84: WarrantyType.SEVEN_YEARS,
-            120: WarrantyType.TEN_YEARS
+            1: "1 mes",
+            3: "3 meses",
+            6: "6 meses",
+            12: "1 año",
+            24: "2 años",
+            60: "5 años",
+            84: "7 años",
+            120: "10 años"
         }
-        warranty_type = warranty_type_map.get(months, WarrantyType.ONE_MONTH)
+        warranty_type_str = warranty_type_map.get(months, "1 mes")
         
         if months >= 24:
             end_warranty = start + relativedelta(years=months // 12)
@@ -137,7 +137,7 @@ async def create_maintenance(
         db_warranty = Warranty(
             equipment_id=equipment_id,
             maintenance_id=db_maintenance.id,
-            warranty_type=warranty_type,
+            warranty_type=warranty_type_str,
             start_date=start,
             end_date=end_warranty,
             status="active"
@@ -190,7 +190,7 @@ async def update_maintenance(
     if cost is not None:
         maintenance.cost = cost
     if status is not None:
-        maintenance.status = EquipmentStatus(status)
+        maintenance.status = status
     
     async def save_images(img_list: List[UploadFile], img_type: str):
         for img in img_list:
@@ -212,16 +212,16 @@ async def update_maintenance(
     if warranty_months and not maintenance.warranty:
         months = int(warranty_months)
         warranty_type_map = {
-            1: WarrantyType.ONE_MONTH,
-            3: WarrantyType.THREE_MONTHS,
-            6: WarrantyType.SIX_MONTHS,
-            12: WarrantyType.ONE_YEAR,
-            24: WarrantyType.TWO_YEARS,
-            60: WarrantyType.FIVE_YEARS,
-            84: WarrantyType.SEVEN_YEARS,
-            120: WarrantyType.TEN_YEARS
+            1: "1 mes",
+            3: "3 meses",
+            6: "6 meses",
+            12: "1 año",
+            24: "2 años",
+            60: "5 años",
+            84: "7 años",
+            120: "10 años"
         }
-        warranty_type = warranty_type_map.get(months, WarrantyType.ONE_MONTH)
+        warranty_type_str = warranty_type_map.get(months, "1 mes")
         start = maintenance.start_date or date.today()
         if months >= 24:
             end_warranty = start + relativedelta(years=months // 12)
@@ -230,7 +230,7 @@ async def update_maintenance(
         db_warranty = Warranty(
             equipment_id=maintenance.equipment_id,
             maintenance_id=maintenance_id,
-            warranty_type=warranty_type,
+            warranty_type=warranty_type_str,
             start_date=start,
             end_date=end_warranty,
             status="active"
