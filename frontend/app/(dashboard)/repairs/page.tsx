@@ -98,7 +98,7 @@ export default function RepairsPage() {
 
   const fetchAPI = async (url: string, method: string, formData: FormData) => {
     const token = localStorage.getItem('token');
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+    const API_BASE = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || `http://${window.location.hostname}:8000/api`) : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api');
     const res = await fetch(`${API_BASE}${url}`, {
       method,
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -259,7 +259,7 @@ export default function RepairsPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto">
           <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-800">{editingItem ? 'Editar Reparacion' : 'Nueva Reparacion'}</h2>
