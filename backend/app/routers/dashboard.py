@@ -48,12 +48,12 @@ async def get_dashboard_stats(
     
     pending_maintenance = db.query(Maintenance).filter(
         Maintenance.company_id == current_user.company_id,
-        Maintenance.status.in_([EquipmentStatus.PENDING, EquipmentStatus.IN_PROGRESS])
+        Maintenance.status.in_(["pending", "in_progress"])
     ).count()
     
     pending_repairs = db.query(Repair).filter(
         Repair.company_id == current_user.company_id,
-        Repair.status.in_([EquipmentStatus.PENDING, EquipmentStatus.IN_PROGRESS])
+        Repair.status.in_(["pending", "in_progress"])
     ).count()
     
     active_warranties = db.query(Warranty).filter(
@@ -129,19 +129,19 @@ async def get_recent_activity(
             "type": e.type_name,
             "model": f"{e.brand} {e.model}" if e.brand else e.model,
             "client": e.client.name if e.client else None,
-            "status": e.status.value if e.status else None,
+            "status": e.status if e.status else None,
             "created_at": e.created_at
         } for e in recent_equipment],
         "maintenance": [{
             "id": m.id,
             "equipment": f"{m.equipment.brand} {m.equipment.model}" if m.equipment else None,
-            "status": m.status.value if m.status else None,
+            "status": m.status if m.status else None,
             "created_at": m.created_at
         } for m in recent_maintenance],
         "repairs": [{
             "id": r.id,
             "equipment": f"{r.equipment.brand} {r.equipment.model}" if r.equipment else None,
-            "status": r.status.value if r.status else None,
+            "status": r.status if r.status else None,
             "created_at": r.created_at
         } for r in recent_repairs]
     }

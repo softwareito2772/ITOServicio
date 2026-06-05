@@ -132,7 +132,7 @@ async def get_client_equipment_history(
             "brand": eq.brand,
             "model": eq.model,
             "serial_number": eq.serial_number,
-            "status": eq.status.value,
+            "status": eq.status,
             "arrival_date": eq.arrival_date,
             "created_at": eq.created_at
         })

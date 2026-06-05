@@ -80,7 +80,7 @@ async def report_maintenance(
             "description": m.description,
             "start_date": m.start_date,
             "end_date": m.end_date,
-            "status": m.status.value if m.status else None
+                "status": m.status if m.status else None
         } for m in maintenance]
     }
 
@@ -121,7 +121,7 @@ async def report_repairs(
             "total_cost": r.total_cost,
             "start_date": r.start_date,
             "end_date": r.end_date,
-            "status": r.status.value if r.status else None
+                "status": r.status if r.status else None
         } for r in repairs]
     }
 
@@ -225,13 +225,13 @@ async def report_equipment_history(
             "model": eq.model,
             "serial_number": eq.serial_number,
             "arrival_date": eq.arrival_date,
-            "status": eq.status.value if eq.status else None,
+            "status": eq.status if eq.status else None,
             "maintenance": [{
                 "id": m.id,
                 "description": m.description,
                 "start_date": m.start_date,
                 "end_date": m.end_date,
-                "status": m.status.value if m.status else None
+            "status": m.status if m.status else None
             } for m in maintenance],
             "repairs": [{
                 "id": r.id,
@@ -240,7 +240,7 @@ async def report_equipment_history(
                 "total_cost": r.total_cost,
                 "start_date": r.start_date,
                 "end_date": r.end_date,
-                "status": r.status.value if r.status else None
+            "status": r.status if r.status else None
             } for r in repairs]
         })
     
@@ -301,7 +301,7 @@ async def export_report(
                 m.description,
                 str(m.start_date) if m.start_date else "",
                 str(m.end_date) if m.end_date else "",
-                m.status.value if m.status else ""
+                m.status if m.status else ""
             ])
     
     elif report_type == "repairs":
@@ -324,7 +324,7 @@ async def export_report(
                 r.total_cost,
                 str(r.start_date) if r.start_date else "",
                 str(r.end_date) if r.end_date else "",
-                r.status.value if r.status else ""
+                r.status if r.status else ""
             ])
     
     elif report_type == "clients":
