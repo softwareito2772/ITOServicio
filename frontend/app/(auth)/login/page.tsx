@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { toast } from 'sonner';
 import { authAPI } from '@/lib/api';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -21,18 +20,12 @@ export default function LoginPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const getLogo = () => {
-    if (typeof window !== 'undefined') {
-      const company = JSON.parse(localStorage.getItem('company') || 'null');
-      if (company?.logo_url) return company.logo_url;
-    }
-    return '/logo.png';
-  };
-
   if (splash) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 gap-6">
-        <Image src="/logo.png" alt="ITO" width={100} height={100} className="rounded-2xl shadow-lg animate-pulse" />
+        <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center animate-pulse">
+          <span className="text-primary font-bold text-3xl">S</span>
+        </div>
         <p className="text-gray-500 text-sm animate-pulse">Cargando...</p>
       </div>
     );
@@ -93,7 +86,6 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 p-4">
       <div className="w-full max-w-md animate-fadeIn">
         <div className="text-center mb-8">
-          <Image src={getLogo()} alt="Logo" width={80} height={80} className="mx-auto mb-4 rounded-2xl shadow-lg" />
           <h1 className="text-2xl font-bold text-gray-800">Servicios</h1>
           <p className="text-gray-500 mt-2">Ingresa a tu cuenta</p>
         </div>
