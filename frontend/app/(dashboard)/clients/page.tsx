@@ -187,7 +187,7 @@ export default function ClientsPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
-          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full sm:max-w-lg max-h-[95vh] overflow-y-auto">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-[calc(100%-1rem)] sm:w-full sm:max-w-lg max-h-[95vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
                 {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
