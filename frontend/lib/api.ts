@@ -224,6 +224,16 @@ export const companiesAPI = {
   getUsers: (id: number) => api.get(`/companies/${id}/users`),
   updateMySettings: (data: any) => api.put('/companies/my/settings', data),
   updateMyModules: (modules: string[]) => api.put('/companies/my/modules', { modules }),
+  uploadLogo: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/companies/upload-logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  uploadMyLogo: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/companies/my/upload-logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 export const reportsAPI = {

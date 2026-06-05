@@ -28,6 +28,9 @@ export default function SuperAdminPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: '', slug: '', email_domain: '', description: '',
     primary_color: '#7C9CBF', secondary_color: '#B4C7E7', logo_url: '',
@@ -72,7 +75,14 @@ export default function SuperAdminPage() {
     }
     setSaving(true);
     try {
-      await companiesAPI.create(formData);
+      let logoUrl = formData.logo_url;
+      if (logoFile) {
+        setUploading(true);
+        const uploadRes = await companiesAPI.uploadLogo(logoFile);
+        logoUrl = uploadRes.data.url;
+        setUploading(false);
+      }
+      await companiesAPI.create({ ...formData, logo_url: logoUrl });
       toast.success('Empresa creada correctamente');
       setShowCreateModal(false);
       resetForm();
@@ -107,8 +117,11 @@ export default function SuperAdminPage() {
     setFormData({
       name: '', slug: '', email_domain: '', description: '',
       primary_color: '#7C9CBF', secondary_color: '#B4C7E7', logo_url: '',
-      modules: [], admin_email: '', admin_password: '', admin_name: '',
+      modules: [] as string[],
+      admin_email: '', admin_password: '', admin_name: '',
     });
+    setLogoFile(null);
+    setLogoPreview('');
   };
 
   if (loading) {
@@ -183,9 +196,9 @@ export default function SuperAdminPage() {
       )}
 
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-[calc(100%-1rem)] sm:w-full sm:max-w-2xl max-h-[95vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-gray-800">Nueva Empresa</h2>
               <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
             </div>
@@ -209,8 +222,27 @@ export default function SuperAdminPage() {
                 <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="input-field" rows={3} placeholder="Describe qué hace la empresa..." />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-                <input type="text" value={formData.logo_url} onChange={e => setFormData({...formData, logo_url: e.target.value})} className="input-field" placeholder="https://ejemplo.com/logo.png" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                <div className="flex items-center gap-4">
+                  {(logoPreview || formData.logo_url) && (
+                    <img src={logoPreview || formData.logo_url} alt="Logo preview" className="w-16 h-16 rounded-lg object-cover border" />
+                  )}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setLogoFile(file);
+                          setLogoPreview(URL.createObjectURL(file));
+                        }
+                      }}
+                      className="input-field text-sm file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-primary file:text-white file:cursor-pointer"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">PNG, JPG o WebP. Max 2MB.</p>
+                  </div>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -262,9 +294,9 @@ export default function SuperAdminPage() {
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowCreateModal(false)} className="btn-secondary">Cancelar</button>
-                <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
-                  {saving && <Loader2 className="animate-spin" size={16} />}
-                  Crear Empresa
+                <button type="submit" disabled={saving || uploading} className="btn-primary flex items-center gap-2">
+                  {(saving || uploading) && <Loader2 className="animate-spin" size={16} />}
+                  {uploading ? 'Subiendo logo...' : 'Crear Empresa'}
                 </button>
               </div>
             </form>
@@ -273,8 +305,8 @@ export default function SuperAdminPage() {
       )}
 
       {editingCompany && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-[calc(100%-1rem)] sm:w-full sm:max-w-lg max-h-[95vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-gray-800">Módulos de {editingCompany.name}</h2>

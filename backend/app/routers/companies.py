@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
+import base64
 from ..database import get_db
 from ..models import Company, CompanyModule, User, AVAILABLE_MODULES
 from ..schemas import CompanyCreate, CompanyUpdate, CompanyResponse, CompanyWithModules, CompanyModuleUpdate, UserResponse
 from ..auth import get_current_super_admin, get_current_admin_user, hash_password, get_company_data
+from ..cloudinary_config import upload_image
 
 router = APIRouter()
 
@@ -35,6 +37,27 @@ async def get_available_modules(
     current_user: User = Depends(get_current_super_admin)
 ):
     return AVAILABLE_MODULES
+
+
+@router.post("/upload-logo")
+async def upload_logo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_super_admin)
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Solo se permiten archivos de imagen")
+    
+    contents = await file.read()
+    if len(contents) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen no debe exceder 2MB")
+    
+    result = upload_image(file.file, folder="ito/logos")
+    if result:
+        return {"url": result["url"], "public_id": result["public_id"]}
+    
+    b64 = base64.b64encode(contents).decode("utf-8")
+    data_url = f"data:{file.content_type};base64,{b64}"
+    return {"url": data_url, "public_id": None}
 
 
 @router.get("/my/company", response_model=CompanyWithModules)
@@ -84,6 +107,27 @@ async def update_my_company(
         description=company.description, logo_url=company.logo_url,
         is_active=company.is_active, created_at=company.created_at, modules=modules,
     )
+
+
+@router.post("/my/upload-logo")
+async def upload_my_logo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_admin_user)
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Solo se permiten archivos de imagen")
+    
+    contents = await file.read()
+    if len(contents) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen no debe exceder 2MB")
+    
+    result = upload_image(file.file, folder="ito/logos")
+    if result:
+        return {"url": result["url"], "public_id": result["public_id"]}
+    
+    b64 = base64.b64encode(contents).decode("utf-8")
+    data_url = f"data:{file.content_type};base64,{b64}"
+    return {"url": data_url, "public_id": None}
 
 
 @router.put("/my/modules", response_model=CompanyWithModules)
