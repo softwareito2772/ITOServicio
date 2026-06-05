@@ -186,13 +186,13 @@ export default function ClientsPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-full sm:max-w-lg max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
                 {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700">
+              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700 p-1">
                 <X size={24} />
               </button>
             </div>
@@ -246,7 +246,7 @@ export default function ClientsPage() {
                   rows={2}
                 />
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 pb-2">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1">
                   Cancelar
                 </button>
