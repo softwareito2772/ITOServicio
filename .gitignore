@@ -17,3 +17,8 @@ out/
 .DS_Store
 Thumbs.db
 *.tmp
+backend/test_*.py
+backend/debug_*.py
+backend/check_*.py
+backend/fix_*.py
+backend/verify_*.py
