@@ -72,9 +72,14 @@ export default function WorkshopPage() {
           <h1 className="text-2xl font-bold text-gray-800">Taller</h1>
           <p className="text-gray-500">Control de órdenes de trabajo</p>
         </div>
-        <Link href="/workshop/new" className="btn-primary flex items-center gap-2">
-          <Plus size={20} /> Nueva Orden
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/workshop/vehicles" className="btn-outline flex items-center gap-2">
+            <Car size={18} /> Flota
+          </Link>
+          <Link href="/workshop/new" className="btn-primary flex items-center gap-2">
+            <Plus size={20} /> Nueva Orden
+          </Link>
+        </div>
       </div>
 
       {stats && (
