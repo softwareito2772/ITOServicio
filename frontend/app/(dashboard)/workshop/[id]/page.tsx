@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Loader2, Save, CheckCircle, X, Download, Clock, Wrench, Car } from 'lucide-react';
 import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -21,8 +21,8 @@ const CHECKLIST_CATEGORIES: Record<string, string> = {
   general: 'General', carga: 'Carga'
 };
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function OrderDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
