@@ -59,7 +59,7 @@ export default function WorkshopPage() {
 
   const getStatusBadge = (status: string) => STATUS_OPTIONS.find(s => s.value === status) || STATUS_OPTIONS[0];
 
-  const getDaysInShop = (entry: string) => {
+  const getDaysInShop = (entry?: string) => {
     if (!entry) return 0;
     const diff = Math.floor((Date.now() - new Date(entry).getTime()) / 86400000);
     return diff;
