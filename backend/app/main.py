@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 from .config import settings
 from .database import engine, Base
-from .routers import auth, users, clients, categories, products, inventory, sales, equipment, maintenance, repairs, warranties, reports, dashboard, arrival_statuses, companies
+from .routers import auth, users, clients, categories, products, inventory, sales, equipment, maintenance, repairs, warranties, reports, dashboard, arrival_statuses, companies, workshop
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title=settings.APP_NAME,
     description="API para el sistema de servicios ITO",
-    version="2.1.0"
+    version="3.0.0"
 )
 
 app.add_middleware(
@@ -39,6 +39,7 @@ app.include_router(warranties.router, prefix="/api/warranties", tags=["Garantía
 app.include_router(reports.router, prefix="/api/reports", tags=["Reportes"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(arrival_statuses.router, prefix="/api/arrival-statuses", tags=["Estados de llegada"])
+app.include_router(workshop.router, prefix="/api/workshop", tags=["Taller"])
 
 
 @app.get("/")

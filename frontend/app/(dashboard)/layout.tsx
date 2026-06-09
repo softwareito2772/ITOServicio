@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Clock,
   Building2,
+  Car,
 } from 'lucide-react';
 import { dashboardAPI } from '@/lib/api';
 
@@ -40,6 +41,7 @@ const navigation = [
   { name: 'Ventas', href: '/sales', icon: ShoppingCart },
   { name: 'Mantenimiento', href: '/maintenance', icon: Wrench },
   { name: 'Reparaciones', href: '/repairs', icon: Hammer },
+  { name: 'Taller', href: '/workshop', icon: Car },
   { name: 'Garantías', href: '/warranties', icon: Shield },
   { name: 'Reportes', href: '/reports', icon: BarChart3 },
   { name: 'Configuración', href: '/settings', icon: Settings },

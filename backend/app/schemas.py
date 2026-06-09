@@ -6,7 +6,8 @@ from datetime import date, datetime
 
 AVAILABLE_MODULES = [
     "ventas", "mantenimiento", "reparaciones", "equipos",
-    "productos", "clientes", "garantias", "reportes", "inventario"
+    "productos", "clientes", "garantias", "reportes", "inventario",
+    "taller"
 ]
 
 
@@ -519,3 +520,199 @@ class ReportFilter(BaseModel):
 class ImageUploadResponse(BaseModel):
     url: str
     public_id: str
+
+
+class WorkshopVehicleCreate(BaseModel):
+    client_id: int
+    plate_number: str
+    color: Optional[str] = None
+    vehicle_type: str = "sedan"
+    brand: Optional[str] = None
+    model: str
+    year: Optional[int] = None
+    mileage: int = 0
+    assigned_to: Optional[str] = None
+    brought_by: Optional[str] = None
+    brought_by_phone: Optional[str] = None
+
+
+class WorkshopVehicleUpdate(BaseModel):
+    client_id: Optional[int] = None
+    plate_number: Optional[str] = None
+    color: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    brand: Optional[str] = None
+    model: Optional[str] = None
+    year: Optional[int] = None
+    mileage: Optional[int] = None
+    assigned_to: Optional[str] = None
+    brought_by: Optional[str] = None
+    brought_by_phone: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class WorkshopVehicleResponse(BaseModel):
+    id: int
+    client_id: int
+    plate_number: str
+    color: Optional[str] = None
+    vehicle_type: str
+    brand: Optional[str] = None
+    model: str
+    year: Optional[int] = None
+    mileage: int
+    assigned_to: Optional[str] = None
+    brought_by: Optional[str] = None
+    brought_by_phone: Optional[str] = None
+    is_active: bool
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    client: Optional[ClientResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopChecklistItem(BaseModel):
+    item_name: str
+    item_category: str
+    status: str = "ok"
+    notes: Optional[str] = None
+    needs_replacement: bool = False
+
+
+class WorkshopChecklistResponse(BaseModel):
+    id: int
+    order_id: int
+    item_name: str
+    item_category: str
+    status: str
+    notes: Optional[str] = None
+    needs_replacement: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopPartsUsedCreate(BaseModel):
+    product_id: int
+    quantity: int = 1
+    unit_cost: float = 0
+    unit_price: float = 0
+
+
+class WorkshopPartsUsedResponse(BaseModel):
+    id: int
+    order_id: int
+    product_id: int
+    quantity: int
+    unit_cost: float
+    unit_price: float
+    created_at: Optional[datetime] = None
+    product: Optional[ProductResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopOrderCreate(BaseModel):
+    vehicle_id: int
+    client_id: int
+    type: str
+    description: Optional[str] = None
+    diagnosis: Optional[str] = None
+    solution: Optional[str] = None
+    assistant_name: Optional[str] = None
+    entry_km: Optional[int] = None
+    estimated_completion: Optional[str] = None
+    cost_labor: float = 0
+    mechanic_observations: Optional[str] = None
+    recommendations: Optional[str] = None
+    urgent_issues: Optional[str] = None
+    customer_notes: Optional[str] = None
+    next_maintenance_date: Optional[str] = None
+    next_maintenance_km: Optional[int] = None
+    checklist: List[WorkshopChecklistItem] = []
+    parts_used: List[WorkshopPartsUsedCreate] = []
+
+
+class WorkshopOrderUpdate(BaseModel):
+    description: Optional[str] = None
+    diagnosis: Optional[str] = None
+    solution: Optional[str] = None
+    assistant_name: Optional[str] = None
+    status: Optional[str] = None
+    entry_km: Optional[int] = None
+    exit_km: Optional[int] = None
+    estimated_completion: Optional[str] = None
+    cost_labor: Optional[float] = None
+    mechanic_observations: Optional[str] = None
+    recommendations: Optional[str] = None
+    urgent_issues: Optional[str] = None
+    customer_notes: Optional[str] = None
+    picked_up_by: Optional[str] = None
+    picked_up_signature: Optional[str] = None
+    next_maintenance_date: Optional[str] = None
+    next_maintenance_km: Optional[int] = None
+
+
+class WorkshopOrderResponse(BaseModel):
+    id: int
+    vehicle_id: int
+    client_id: int
+    technician_id: Optional[int] = None
+    assistant_name: Optional[str] = None
+    type: str
+    description: Optional[str] = None
+    diagnosis: Optional[str] = None
+    solution: Optional[str] = None
+    status: str
+    entry_km: Optional[int] = None
+    exit_km: Optional[int] = None
+    entry_datetime: Optional[datetime] = None
+    exit_datetime: Optional[datetime] = None
+    estimated_completion: Optional[datetime] = None
+    cost_labor: float
+    cost_parts: float
+    total_cost: float
+    mechanic_observations: Optional[str] = None
+    recommendations: Optional[str] = None
+    urgent_issues: Optional[str] = None
+    customer_notes: Optional[str] = None
+    picked_up_by: Optional[str] = None
+    picked_up_signature: Optional[str] = None
+    picked_up_datetime: Optional[datetime] = None
+    next_maintenance_date: Optional[date] = None
+    next_maintenance_km: Optional[int] = None
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    vehicle: Optional[WorkshopVehicleResponse] = None
+    client: Optional[ClientResponse] = None
+    technician: Optional[UserResponse] = None
+    checklist: List[WorkshopChecklistResponse] = []
+    parts_used: List[WorkshopPartsUsedResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopChecklistTemplateCreate(BaseModel):
+    vehicle_type: str
+    item_name: str
+    item_category: str
+    sort_order: int = 0
+
+
+class WorkshopChecklistTemplateResponse(BaseModel):
+    id: int
+    vehicle_type: str
+    item_name: str
+    item_category: str
+    sort_order: int
+    is_active: bool
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

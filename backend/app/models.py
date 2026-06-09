@@ -51,7 +51,8 @@ class InventoryMovementType(str, enum.Enum):
 
 AVAILABLE_MODULES = [
     "ventas", "mantenimiento", "reparaciones", "equipos",
-    "productos", "clientes", "garantias", "reportes", "inventario"
+    "productos", "clientes", "garantias", "reportes", "inventario",
+    "taller"
 ]
 
 
@@ -339,3 +340,111 @@ class EquipmentArrivalStatus(Base):
     is_default = Column(Boolean, default=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class WorkshopVehicle(Base):
+    __tablename__ = "workshop_vehicles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    plate_number = Column(String(20), nullable=False)
+    color = Column(String(30), nullable=True)
+    vehicle_type = Column(String(50), default="sedan")
+    brand = Column(String(100), nullable=True)
+    model = Column(String(100), nullable=False)
+    year = Column(Integer, nullable=True)
+    mileage = Column(Integer, default=0)
+    assigned_to = Column(String(255), nullable=True)
+    brought_by = Column(String(255), nullable=True)
+    brought_by_phone = Column(String(20), nullable=True)
+    is_active = Column(Boolean, default=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    client = relationship("Client")
+    orders = relationship("WorkshopOrder", back_populates="vehicle")
+
+
+class WorkshopOrder(Base):
+    __tablename__ = "workshop_orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_id = Column(Integer, ForeignKey("workshop_vehicles.id"), nullable=False)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    technician_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    assistant_name = Column(String(255), nullable=True)
+    type = Column(String(20), nullable=False)
+    description = Column(Text, nullable=True)
+    diagnosis = Column(Text, nullable=True)
+    solution = Column(Text, nullable=True)
+    status = Column(String(50), default="pending")
+    entry_km = Column(Integer, nullable=True)
+    exit_km = Column(Integer, nullable=True)
+    entry_datetime = Column(DateTime, nullable=True)
+    exit_datetime = Column(DateTime, nullable=True)
+    estimated_completion = Column(DateTime, nullable=True)
+    cost_labor = Column(Float, default=0)
+    cost_parts = Column(Float, default=0)
+    total_cost = Column(Float, default=0)
+    mechanic_observations = Column(Text, nullable=True)
+    recommendations = Column(Text, nullable=True)
+    urgent_issues = Column(Text, nullable=True)
+    customer_notes = Column(Text, nullable=True)
+    picked_up_by = Column(String(255), nullable=True)
+    picked_up_signature = Column(Text, nullable=True)
+    picked_up_datetime = Column(DateTime, nullable=True)
+    next_maintenance_date = Column(Date, nullable=True)
+    next_maintenance_km = Column(Integer, nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    vehicle = relationship("WorkshopVehicle", back_populates="orders")
+    client = relationship("Client")
+    technician = relationship("User")
+    checklist = relationship("WorkshopChecklist", back_populates="order", cascade="all, delete-orphan")
+    parts_used = relationship("WorkshopPartsUsed", back_populates="order", cascade="all, delete-orphan")
+
+
+class WorkshopChecklist(Base):
+    __tablename__ = "workshop_checklist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("workshop_orders.id"), nullable=False)
+    item_name = Column(String(100), nullable=False)
+    item_category = Column(String(50), nullable=False)
+    status = Column(String(20), default="ok")
+    notes = Column(Text, nullable=True)
+    needs_replacement = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    order = relationship("WorkshopOrder", back_populates="checklist")
+
+
+class WorkshopChecklistTemplate(Base):
+    __tablename__ = "workshop_checklist_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_type = Column(String(50), nullable=False)
+    item_name = Column(String(100), nullable=False)
+    item_category = Column(String(50), nullable=False)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class WorkshopPartsUsed(Base):
+    __tablename__ = "workshop_parts_used"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("workshop_orders.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, default=1)
+    unit_cost = Column(Float, default=0)
+    unit_price = Column(Float, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    order = relationship("WorkshopOrder", back_populates="parts_used")
+    product = relationship("Product")

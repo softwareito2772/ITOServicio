@@ -236,6 +236,36 @@ export const companiesAPI = {
   },
 };
 
+export const workshopAPI = {
+  getOrders: (status?: string, type?: string) => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (type) params.append('order_type', type);
+    const query = params.toString();
+    return api.get('/workshop/' + (query ? `?${query}` : ''));
+  },
+  getOrder: (id: number) => api.get(`/workshop/${id}`),
+  createOrder: (data: any) => api.post('/workshop/', data),
+  updateOrder: (id: number, data: any) => api.put(`/workshop/${id}`, data),
+  deleteOrder: (id: number) => api.delete(`/workshop/${id}`),
+  getStats: () => api.get('/workshop/summary/stats'),
+  getVehicles: (search?: string, type?: string) => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (type) params.append('vehicle_type', type);
+    const query = params.toString();
+    return api.get('/workshop/vehicles' + (query ? `?${query}` : ''));
+  },
+  getVehicle: (id: number) => api.get(`/workshop/vehicles/${id}`),
+  createVehicle: (data: any) => api.post('/workshop/vehicles', data),
+  updateVehicle: (id: number, data: any) => api.put(`/workshop/vehicles/${id}`, data),
+  deleteVehicle: (id: number) => api.delete(`/workshop/vehicles/${id}`),
+  getVehicleHistory: (id: number) => api.get(`/workshop/vehicles/${id}/history`),
+  getChecklistTemplate: (vehicleType: string) => api.get(`/workshop/checklist-templates/${vehicleType}`),
+  createChecklistTemplate: (data: any) => api.post('/workshop/checklist-templates', data),
+  deleteChecklistTemplate: (id: number) => api.delete(`/workshop/checklist-templates/${id}`),
+};
+
 export const reportsAPI = {
   getSales: (startDate?: string, endDate?: string, clientId?: number) => {
     let url = '/reports/sales';
