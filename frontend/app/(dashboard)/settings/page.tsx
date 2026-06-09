@@ -7,7 +7,8 @@ import { toast } from 'sonner';
 
 const ALL_MODULES = [
   'ventas', 'mantenimiento', 'reparaciones', 'equipos',
-  'productos', 'clientes', 'garantias', 'reportes', 'inventario'
+  'productos', 'clientes', 'garantias', 'reportes', 'inventario',
+  'taller'
 ];
 
 const MODULE_LABELS: Record<string, string> = {
@@ -20,6 +21,7 @@ const MODULE_LABELS: Record<string, string> = {
   garantias: 'Garantías',
   reportes: 'Reportes',
   inventario: 'Inventario',
+  taller: 'Taller',
 };
 
 interface UserData { id?: number; name: string; email: string; role: string; company_id?: number; }
