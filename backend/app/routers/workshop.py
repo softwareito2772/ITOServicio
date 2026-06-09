@@ -106,7 +106,9 @@ async def get_workshop_vehicles(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(WorkshopVehicle).filter(WorkshopVehicle.company_id == current_user.company_id)
+    query = db.query(WorkshopVehicle).filter(WorkshopVehicle.is_active == True)
+    if current_user.company_id:
+        query = query.filter(WorkshopVehicle.company_id == current_user.company_id)
     if search:
         query = query.filter(
             (WorkshopVehicle.plate_number.ilike(f"%{search}%")) |
@@ -219,6 +221,61 @@ async def delete_checklist_template(
     return {"message": "Ítem desactivado"}
 
 
+@router.get("/mechanics", response_model=List[WorkshopMechanicResponse])
+async def list_mechanics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    query = db.query(WorkshopMechanic).filter(WorkshopMechanic.is_active == True)
+    if current_user.company_id:
+        query = query.filter(WorkshopMechanic.company_id == current_user.company_id)
+    return query.order_by(WorkshopMechanic.name).all()
+
+
+@router.post("/mechanics", response_model=WorkshopMechanicResponse)
+async def create_mechanic(
+    data: WorkshopMechanicCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    mechanic = WorkshopMechanic(**data.model_dump(), company_id=current_user.company_id)
+    db.add(mechanic)
+    db.commit()
+    db.refresh(mechanic)
+    return mechanic
+
+
+@router.put("/mechanics/{mechanic_id}", response_model=WorkshopMechanicResponse)
+async def update_mechanic(
+    mechanic_id: int,
+    data: WorkshopMechanicUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    mechanic = db.query(WorkshopMechanic).filter(WorkshopMechanic.id == mechanic_id).first()
+    if not mechanic:
+        raise HTTPException(status_code=404, detail="Mecánico no encontrado")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(mechanic, key, value)
+    db.commit()
+    db.refresh(mechanic)
+    return mechanic
+
+
+@router.delete("/mechanics/{mechanic_id}")
+async def delete_mechanic(
+    mechanic_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    mechanic = db.query(WorkshopMechanic).filter(WorkshopMechanic.id == mechanic_id).first()
+    if not mechanic:
+        raise HTTPException(status_code=404, detail="Mecánico no encontrado")
+    mechanic.is_active = False
+    db.commit()
+    return {"message": "Mecánico desactivado"}
+
+
 @router.get("/", response_model=List[WorkshopOrderResponse])
 async def get_workshop_orders(
     skip: int = 0,
@@ -228,7 +285,9 @@ async def get_workshop_orders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(WorkshopOrder).filter(WorkshopOrder.company_id == current_user.company_id)
+    query = db.query(WorkshopOrder)
+    if current_user.company_id:
+        query = query.filter(WorkshopOrder.company_id == current_user.company_id)
     if status:
         query = query.filter(WorkshopOrder.status == status)
     if order_type:
@@ -583,59 +642,3 @@ async def generate_checklist_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=checklist-orden-{order.id}.pdf"}
     )
-
-
-@router.get("/mechanics")
-async def list_mechanics(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    mechanics = db.query(WorkshopMechanic).filter(
-        WorkshopMechanic.company_id == current_user.company_id,
-        WorkshopMechanic.is_active == True
-    ).order_by(WorkshopMechanic.name).all()
-    return mechanics
-
-
-@router.post("/mechanics", response_model=WorkshopMechanicResponse)
-async def create_mechanic(
-    data: WorkshopMechanicCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    mechanic = WorkshopMechanic(**data.model_dump(), company_id=current_user.company_id)
-    db.add(mechanic)
-    db.commit()
-    db.refresh(mechanic)
-    return mechanic
-
-
-@router.put("/mechanics/{mechanic_id}", response_model=WorkshopMechanicResponse)
-async def update_mechanic(
-    mechanic_id: int,
-    data: WorkshopMechanicUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    mechanic = db.query(WorkshopMechanic).filter(WorkshopMechanic.id == mechanic_id).first()
-    if not mechanic:
-        raise HTTPException(status_code=404, detail="Mecánico no encontrado")
-    for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(mechanic, key, value)
-    db.commit()
-    db.refresh(mechanic)
-    return mechanic
-
-
-@router.delete("/mechanics/{mechanic_id}")
-async def delete_mechanic(
-    mechanic_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    mechanic = db.query(WorkshopMechanic).filter(WorkshopMechanic.id == mechanic_id).first()
-    if not mechanic:
-        raise HTTPException(status_code=404, detail="Mecánico no encontrado")
-    mechanic.is_active = False
-    db.commit()
-    return {"message": "Mecánico desactivado"}
