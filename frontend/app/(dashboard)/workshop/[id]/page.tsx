@@ -6,9 +6,6 @@ import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-
-const CheckListPDF = dynamic(() => import('@/lib/pdf').then(m => m.default), { ssr: false });
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pendiente' },
@@ -80,9 +77,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const generatePDF = async () => {
     setGeneratingPDF(true);
     try {
-      const company = JSON.parse(localStorage.getItem('company') || '{}');
-      await CheckListPDF(order, company);
-      toast.success('PDF generado');
+      const API_BASE = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || `http://${window.location.hostname}:8000/api`) : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api');
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/workshop/${order.id}/checklist-pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('Error al generar PDF');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `checklist-orden-${order.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('PDF descargado');
     } catch { toast.error('Error al generar PDF'); }
     finally { setGeneratingPDF(false); }
   };

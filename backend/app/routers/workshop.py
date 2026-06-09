@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime, date, timedelta
+from io import BytesIO
 from ..database import get_db
 from ..models import (
     WorkshopVehicle, WorkshopOrder, WorkshopChecklist,
     WorkshopChecklistTemplate, WorkshopPartsUsed,
-    Client, User, Product, InventoryMovement
+    Client, User, Product, InventoryMovement, Company
 )
 from ..schemas import (
     WorkshopVehicleCreate, WorkshopVehicleUpdate, WorkshopVehicleResponse,
@@ -435,3 +437,145 @@ async def get_vehicle_history(
         WorkshopOrder.vehicle_id == vehicle_id
     ).order_by(WorkshopOrder.created_at.desc()).all()
     return {"vehicle": vehicle, "orders": orders}
+
+
+@router.get("/{order_id}/checklist-pdf")
+async def generate_checklist_pdf(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    order = db.query(WorkshopOrder).filter(WorkshopOrder.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.units import inch
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    except ImportError:
+        raise HTTPException(status_code=500, detail="ReportLab no instalado")
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    company = db.query(Company).filter(Company.id == current_user.company_id).first() if current_user.company_id else None
+
+    title_style = ParagraphStyle('Title2', parent=styles['Heading1'], fontSize=16, spaceAfter=6)
+    subtitle_style = ParagraphStyle('Subtitle2', parent=styles['Heading2'], fontSize=12, spaceAfter=4)
+    normal_style = ParagraphStyle('Normal2', parent=styles['Normal'], fontSize=9, spaceAfter=2)
+    small_style = ParagraphStyle('Small2', parent=styles['Normal'], fontSize=8)
+
+    elements.append(Paragraph(company.name if company else "Taller", title_style))
+    elements.append(Paragraph(f"Orden de Trabajo #{order.id}", subtitle_style))
+    elements.append(Paragraph(f"Fecha: {order.created_at.strftime('%d/%m/%Y') if order.created_at else 'N/A'}", normal_style))
+    elements.append(Paragraph(f"Tipo: {'Mantenimiento' if order.type == 'mantenimiento' else 'Reparación'}", normal_style))
+    elements.append(Spacer(1, 12))
+
+    v = order.vehicle
+    if v:
+        elements.append(Paragraph("VEHÍCULO", subtitle_style))
+        veh_data = [
+            ['Placa:', v.plate_number, 'Marca:', f"{v.brand or ''} {v.model}"],
+            ['Color:', v.color or 'N/A', 'Tipo:', v.vehicle_type],
+            ['Año:', str(v.year or 'N/A'), 'Km:', str(v.mileage or 'N/A')],
+            ['Asignado a:', v.assigned_to or 'N/A', '', ''],
+        ]
+        t = Table(veh_data, colWidths=[1.2*inch, 2*inch, 1.2*inch, 2*inch])
+        t.setStyle(TableStyle([
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('FONT', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONT', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ]))
+        elements.append(t)
+        elements.append(Spacer(1, 12))
+
+    if order.checklist:
+        elements.append(Paragraph("CHECKLIST DE INGRESO", subtitle_style))
+        cat_names = {'motor': 'Motor', 'frenos': 'Frenos', 'llantas': 'Llantas', 'luces': 'Luces',
+                     'suspension': 'Suspensión', 'electrico': 'Eléctrico', 'transmision': 'Transmisión',
+                     'general': 'General', 'carga': 'Carga'}
+        grouped = {}
+        for item in order.checklist:
+            if item.item_category not in grouped:
+                grouped[item.item_category] = []
+            grouped[item.item_category].append(item)
+
+        for cat, items in grouped.items():
+            elements.append(Paragraph(f"<b>{cat_names.get(cat, cat)}</b>", normal_style))
+            data = [['Estado', 'Ítem', 'Notas']]
+            for item in items:
+                data.append([item.status.upper(), item.item_name, item.notes or ''])
+            t = Table(data, colWidths=[1*inch, 3.5*inch, 2.5*inch])
+            t.setStyle(TableStyle([
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+                ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            elements.append(t)
+            elements.append(Spacer(1, 8))
+        elements.append(Spacer(1, 8))
+
+    sections = [
+        ('OBSERVACIONES DEL MECÁNICO', order.mechanic_observations),
+        ('RECOMENDACIONES', order.recommendations),
+        ('PROBLEMAS URGENTES', order.urgent_issues),
+        ('NOTAS DEL CLIENTE', order.customer_notes),
+    ]
+    for title, content in sections:
+        if content:
+            elements.append(Paragraph(f"<b>{title}</b>", normal_style))
+            elements.append(Paragraph(content, small_style))
+            elements.append(Spacer(1, 6))
+
+    if order.parts_used:
+        elements.append(Paragraph("PIEZAS UTILIZADAS", subtitle_style))
+        data = [['Pieza', 'Cant', 'Costo', 'Precio']]
+        total_parts = 0
+        for part in order.parts_used:
+            name = part.product.name if part.product else 'N/A'
+            data.append([name, str(part.quantity), f"${part.unit_cost:.2f}", f"${part.unit_price:.2f}"])
+            total_parts += part.unit_price * part.quantity
+        data.append(['', '', 'Total:', f"${total_parts:.2f}"])
+        t = Table(data, colWidths=[3*inch, 0.8*inch, 1.2*inch, 1.2*inch])
+        t.setStyle(TableStyle([
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+            ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONT', (-2, -1), (-1, -1), 'Helvetica-Bold'),
+        ]))
+        elements.append(t)
+        elements.append(Spacer(1, 12))
+
+    elements.append(Paragraph("COSTOS", subtitle_style))
+    cost_data = [
+        ['Mano de obra:', f"${order.cost_labor:.2f}"],
+        ['Piezas:', f"${order.cost_parts:.2f}"],
+        ['TOTAL:', f"${order.total_cost:.2f}"],
+    ]
+    t = Table(cost_data, colWidths=[4*inch, 2*inch])
+    t.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONT', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 20))
+
+    elements.append(Paragraph("Mecánico: ______________________    Cliente: ______________________", normal_style))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=checklist-orden-{order.id}.pdf"}
+    )
