@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
-import { workshopAPI, clientsAPI, productsAPI, usersAPI } from '@/lib/api';
+import { workshopAPI, productsAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -14,14 +14,6 @@ interface ChecklistItem {
   notes: string;
   needs_replacement: boolean;
 }
-
-const VEHICLE_TYPES = [
-  { value: 'sedan', label: 'Sedán' },
-  { value: 'pickup', label: 'Pickup' },
-  { value: 'suv', label: 'SUV' },
-  { value: 'camioneta', label: 'Camioneta' },
-  { value: 'otro', label: 'Otro' },
-];
 
 const CHECKLIST_CATEGORIES: Record<string, string> = {
   motor: 'Motor', frenos: 'Frenos', llantas: 'Llantas', luces: 'Luces',
@@ -34,8 +26,7 @@ const STATUS_OPTIONS = ['ok', 'reemplazar', 'limpiar', 'ajustar', 'reparar', 'na
 export default function NewOrderPage() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
-  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [mechanics, setMechanics] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,7 +36,8 @@ export default function NewOrderPage() {
   const [checklistComplete, setChecklistComplete] = useState(false);
 
   const [formData, setFormData] = useState({
-    vehicle_id: '', client_id: '', type: 'mantenimiento', assistant_name: '',
+    vehicle_id: '', client_id: '', type: 'mantenimiento',
+    mechanic_name: '', assistant_names: [] as string[],
     description: '', diagnosis: '', solution: '', entry_km: '',
     cost_labor: '0', mechanic_observations: '', recommendations: '',
     urgent_issues: '', customer_notes: '', next_maintenance_date: '', next_maintenance_km: '',
@@ -57,10 +49,10 @@ export default function NewOrderPage() {
 
   const loadData = async () => {
     try {
-      const [vRes, cRes, tRes, pRes] = await Promise.all([
-        workshopAPI.getVehicles(), clientsAPI.getAll(), usersAPI.getAll(), productsAPI.getAll(),
+      const [vRes, mRes, pRes] = await Promise.all([
+        workshopAPI.getVehicles(), workshopAPI.getMechanics(), productsAPI.getAll(),
       ]);
-      setVehicles(vRes.data); setClients(cRes.data); setTechnicians(tRes.data); setProducts(pRes.data);
+      setVehicles(vRes.data); setMechanics(mRes.data); setProducts(pRes.data);
     } catch { toast.error('Error al cargar'); }
     finally { setLoading(false); }
   };
@@ -94,6 +86,14 @@ export default function NewOrderPage() {
     setChecklistComplete(updated.every(i => i.status !== ''));
   };
 
+  const toggleAssistant = (name: string) => {
+    setFormData(prev => {
+      const current = prev.assistant_names;
+      const next = current.includes(name) ? current.filter(n => n !== name) : [...current, name];
+      return { ...prev, assistant_names: next };
+    });
+  };
+
   const addPart = () => setParts([...parts, { product_id: '', quantity: 1, unit_cost: 0, unit_price: 0 }]);
   const removePart = (i: number) => setParts(parts.filter((_, idx) => idx !== i));
   const updatePart = (i: number, field: string, value: any) => {
@@ -117,7 +117,8 @@ export default function NewOrderPage() {
         vehicle_id: parseInt(formData.vehicle_id),
         client_id: parseInt(formData.client_id || selectedVehicle?.client_id),
         type: formData.type,
-        assistant_name: formData.assistant_name,
+        mechanic_name: formData.mechanic_name,
+        assistant_names: formData.assistant_names.join(', '),
         description: formData.description,
         diagnosis: formData.diagnosis,
         solution: formData.solution,
@@ -190,7 +191,7 @@ export default function NewOrderPage() {
               <p><span className="text-gray-500">Placa:</span> <strong className="font-mono">{selectedVehicle.plate_number}</strong></p>
               <p><span className="text-gray-500">Marca:</span> {selectedVehicle.brand} {selectedVehicle.model}</p>
               <p><span className="text-gray-500">Color:</span> {selectedVehicle.color}</p>
-              <p><span className="text-gray-500">Tipo:</span> <span className="capitalize">{selectedVehicle.vehicle_type}</span></p>
+              <p><span className="text-gray-500">Cliente:</span> <strong>{selectedVehicle.client?.name}</strong></p>
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -199,10 +200,28 @@ export default function NewOrderPage() {
               <input type="number" value={formData.entry_km} onChange={e => setFormData({...formData, entry_km: e.target.value})} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Asistente / Ayudante</label>
-              <input type="text" value={formData.assistant_name} onChange={e => setFormData({...formData, assistant_name: e.target.value})} className="input-field" placeholder="Nombre del ayudante" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mecánico *</label>
+              <select value={formData.mechanic_name} onChange={e => setFormData({...formData, mechanic_name: e.target.value})} className="input-field" required>
+                <option value="">Seleccionar mecánico</option>
+                {mechanics.filter((m: any) => m.role === 'mecanico').map((m: any) => (
+                  <option key={m.id} value={m.name}>{m.name}{m.specialty ? ` - ${m.specialty}` : ''}</option>
+                ))}
+              </select>
             </div>
           </div>
+          {mechanics.filter((m: any) => m.role === 'ayudante').length > 0 && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ayudantes</label>
+              <div className="flex flex-wrap gap-2">
+                {mechanics.filter((m: any) => m.role === 'ayudante').map((m: any) => (
+                  <button key={m.id} type="button" onClick={() => toggleAssistant(m.name)}
+                    className={`px-3 py-1 rounded-full text-sm border transition ${formData.assistant_names.includes(m.name) ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700 border-gray-300 hover:border-primary'}`}>
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {checklist.length > 0 && (
@@ -248,73 +267,55 @@ export default function NewOrderPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones del mecánico</label>
-                <textarea value={formData.mechanic_observations} onChange={e => setFormData({...formData, mechanic_observations: e.target.value})} className="input-field" rows={3} placeholder="Lo que el mecánico encuentra en el vehículo..." />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Recomendaciones</label>
+                <textarea value={formData.recommendations} onChange={e => setFormData({...formData, recommendations: e.target.value})} className="input-field" rows={2} placeholder="Trabajos futuros recomendados..." />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Recomendaciones</label>
-                <textarea value={formData.recommendations} onChange={e => setFormData({...formData, recommendations: e.target.value})} className="input-field" rows={3} placeholder="Próximos servicios recomendados..." />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Problemas urgentes</label>
+                <textarea value={formData.urgent_issues} onChange={e => setFormData({...formData, urgent_issues: e.target.value})} className="input-field" rows={2} placeholder="Problemas detectados..." />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Problemas urgentes</label>
-                <textarea value={formData.urgent_issues} onChange={e => setFormData({...formData, urgent_issues: e.target.value})} className="input-field" rows={2} placeholder="Lo que necesita atención inmediata..." />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Costo mano de obra ($)</label>
+                <input type="number" step="0.01" value={formData.cost_labor} onChange={e => setFormData({...formData, cost_labor: e.target.value})} className="input-field" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notas del cliente</label>
-                <textarea value={formData.customer_notes} onChange={e => setFormData({...formData, customer_notes: e.target.value})} className="input-field" rows={2} placeholder="Qué pidió el cliente..." />
+                <input type="text" value={formData.customer_notes} onChange={e => setFormData({...formData, customer_notes: e.target.value})} className="input-field" placeholder="Lo que el cliente indica..." />
               </div>
             </div>
           </div>
         </div>
 
         <div className="card p-4 sm:p-6">
-          <h2 className="font-bold text-gray-800 mb-4">Costos</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mano de obra ($)</label>
-              <input type="number" step="0.01" min="0" value={formData.cost_labor} onChange={e => setFormData({...formData, cost_labor: e.target.value})} className="input-field" />
-            </div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-bold text-gray-800">Repuestos / Partes</h2>
+            <button type="button" onClick={addPart} className="text-sm text-primary hover:underline">+ Agregar parte</button>
           </div>
-          <div className="mt-4">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold text-gray-700">Piezas / Repuestos</h3>
-              <button type="button" onClick={addPart} className="text-sm text-primary hover:underline">+ Agregar pieza</button>
+          {parts.length === 0 ? (
+            <p className="text-sm text-gray-500">No se han agregado repuestos</p>
+          ) : (
+            <div className="space-y-3">
+              {parts.map((part, i) => (
+                <div key={i} className="flex flex-col sm:flex-row gap-2 p-3 bg-gray-50 rounded-lg">
+                  <select value={part.product_id} onChange={e => updatePart(i, 'product_id', e.target.value)} className="input-field flex-1">
+                    <option value="">Seleccionar repuesto</option>
+                    {products.map((p: any) => <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>)}
+                  </select>
+                  <input type="number" min="1" value={part.quantity} onChange={e => updatePart(i, 'quantity', e.target.value)} className="input-field w-full sm:w-20" placeholder="Cant." />
+                  <input type="number" step="0.01" value={part.unit_price} onChange={e => updatePart(i, 'unit_price', e.target.value)} className="input-field w-full sm:w-28" placeholder="Precio" />
+                  <button type="button" onClick={() => removePart(i)} className="text-danger hover:underline text-sm">Quitar</button>
+                </div>
+              ))}
             </div>
-            {parts.map((part, i) => (
-              <div key={i} className="flex flex-col sm:flex-row gap-2 mb-2 p-2 bg-gray-50 rounded-lg">
-                <select value={part.product_id} onChange={e => updatePart(i, 'product_id', e.target.value)} className="input-field text-xs py-1 flex-1">
-                  <option value="">Seleccionar pieza</option>
-                  {products.map((p: any) => <option key={p.id} value={p.id}>{p.name} (stock: {p.stock})</option>)}
-                </select>
-                <input type="number" min="1" value={part.quantity} onChange={e => updatePart(i, 'quantity', e.target.value)} className="input-field text-xs py-1 w-20" placeholder="Cant" />
-                <input type="number" step="0.01" min="0" value={part.unit_price} onChange={e => updatePart(i, 'unit_price', e.target.value)} className="input-field text-xs py-1 w-24" placeholder="Precio" />
-                <button type="button" onClick={() => removePart(i)} className="text-danger text-xs">Quitar</button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card p-4 sm:p-6">
-          <h2 className="font-bold text-gray-800 mb-4">Próximo Mantenimiento</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha próximo mantenimiento</label>
-              <input type="date" value={formData.next_maintenance_date} onChange={e => setFormData({...formData, next_maintenance_date: e.target.value})} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Km próximo mantenimiento</label>
-              <input type="number" value={formData.next_maintenance_km} onChange={e => setFormData({...formData, next_maintenance_km: e.target.value})} className="input-field" placeholder="50000" />
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <Link href="/workshop" className="btn-outline flex-1 text-center">Cancelar</Link>
-          <button type="submit" disabled={saving || !checklistComplete} className="btn-primary flex-1 flex items-center justify-center gap-2">
-            {saving && <Loader2 className="animate-spin" size={16} />}
-            Crear Orden de Trabajo
+          <button type="submit" disabled={saving || !checklistComplete} className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50">
+            {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Crear Orden
           </button>
         </div>
       </form>

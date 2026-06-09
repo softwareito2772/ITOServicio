@@ -245,7 +245,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <p><span className="text-gray-500">Color:</span> {order.vehicle?.color}</p>
               <p><span className="text-gray-500">Tipo:</span> <span className="capitalize">{order.vehicle?.vehicle_type}</span></p>
               <p><span className="text-gray-500">Año:</span> {order.vehicle?.year}</p>
-              <p><span className="text-gray-500">Asignado a:</span> {order.vehicle?.assigned_to || 'N/A'}</p>
+              <p><span className="text-gray-500">Cliente:</span> <strong>{order.client?.name}</strong></p>
+              {order.vehicle?.assigned_to && <p><span className="text-gray-500">Asignado a:</span> {order.vehicle.assigned_to}</p>}
+            </div>
+          </div>
+
+          <div className="card p-4 sm:p-6">
+            <h2 className="font-bold text-gray-800 mb-4">Personal</h2>
+            <div className="space-y-2 text-sm">
+              <p><span className="text-gray-500">Mecánico:</span> <strong>{order.mechanic_name || 'N/A'}</strong></p>
+              {order.assistant_names && <p><span className="text-gray-500">Ayudantes:</span> {order.assistant_names}</p>}
             </div>
           </div>
 

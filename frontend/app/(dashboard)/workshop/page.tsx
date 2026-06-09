@@ -76,6 +76,9 @@ export default function WorkshopPage() {
           <Link href="/workshop/vehicles" className="btn-outline flex items-center gap-2">
             <Car size={18} /> Flota
           </Link>
+          <Link href="/workshop/mechanics" className="btn-outline flex items-center gap-2">
+            <Wrench size={18} /> Personal
+          </Link>
           <Link href="/workshop/new" className="btn-primary flex items-center gap-2">
             <Plus size={20} /> Nueva Orden
           </Link>

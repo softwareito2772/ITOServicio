@@ -534,6 +534,7 @@ class WorkshopVehicleCreate(BaseModel):
     assigned_to: Optional[str] = None
     brought_by: Optional[str] = None
     brought_by_phone: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class WorkshopVehicleUpdate(BaseModel):
@@ -548,6 +549,7 @@ class WorkshopVehicleUpdate(BaseModel):
     assigned_to: Optional[str] = None
     brought_by: Optional[str] = None
     brought_by_phone: Optional[str] = None
+    image_url: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -564,6 +566,7 @@ class WorkshopVehicleResponse(BaseModel):
     assigned_to: Optional[str] = None
     brought_by: Optional[str] = None
     brought_by_phone: Optional[str] = None
+    image_url: Optional[str] = None
     is_active: bool
     company_id: Optional[int] = None
     created_at: Optional[datetime] = None
@@ -623,7 +626,8 @@ class WorkshopOrderCreate(BaseModel):
     description: Optional[str] = None
     diagnosis: Optional[str] = None
     solution: Optional[str] = None
-    assistant_name: Optional[str] = None
+    mechanic_name: Optional[str] = None
+    assistant_names: Optional[str] = None
     entry_km: Optional[int] = None
     estimated_completion: Optional[str] = None
     cost_labor: float = 0
@@ -641,7 +645,8 @@ class WorkshopOrderUpdate(BaseModel):
     description: Optional[str] = None
     diagnosis: Optional[str] = None
     solution: Optional[str] = None
-    assistant_name: Optional[str] = None
+    mechanic_name: Optional[str] = None
+    assistant_names: Optional[str] = None
     status: Optional[str] = None
     entry_km: Optional[int] = None
     exit_km: Optional[int] = None
@@ -661,8 +666,8 @@ class WorkshopOrderResponse(BaseModel):
     id: int
     vehicle_id: int
     client_id: int
-    technician_id: Optional[int] = None
-    assistant_name: Optional[str] = None
+    mechanic_name: Optional[str] = None
+    assistant_names: Optional[str] = None
     type: str
     description: Optional[str] = None
     diagnosis: Optional[str] = None
@@ -689,7 +694,6 @@ class WorkshopOrderResponse(BaseModel):
     created_at: Optional[datetime] = None
     vehicle: Optional[WorkshopVehicleResponse] = None
     client: Optional[ClientResponse] = None
-    technician: Optional[UserResponse] = None
     checklist: List[WorkshopChecklistResponse] = []
     parts_used: List[WorkshopPartsUsedResponse] = []
 
@@ -710,6 +714,35 @@ class WorkshopChecklistTemplateResponse(BaseModel):
     item_name: str
     item_category: str
     sort_order: int
+    is_active: bool
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopMechanicCreate(BaseModel):
+    name: str
+    role: str = "mecanico"
+    phone: Optional[str] = None
+    specialty: Optional[str] = None
+
+
+class WorkshopMechanicUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    phone: Optional[str] = None
+    specialty: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class WorkshopMechanicResponse(BaseModel):
+    id: int
+    name: str
+    role: str
+    phone: Optional[str] = None
+    specialty: Optional[str] = None
     is_active: bool
     company_id: Optional[int] = None
     created_at: Optional[datetime] = None

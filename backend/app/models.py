@@ -357,6 +357,7 @@ class WorkshopVehicle(Base):
     assigned_to = Column(String(255), nullable=True)
     brought_by = Column(String(255), nullable=True)
     brought_by_phone = Column(String(20), nullable=True)
+    image_url = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -366,14 +367,27 @@ class WorkshopVehicle(Base):
     orders = relationship("WorkshopOrder", back_populates="vehicle")
 
 
+class WorkshopMechanic(Base):
+    __tablename__ = "workshop_mechanics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False)
+    phone = Column(String(20), nullable=True)
+    specialty = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class WorkshopOrder(Base):
     __tablename__ = "workshop_orders"
 
     id = Column(Integer, primary_key=True, index=True)
     vehicle_id = Column(Integer, ForeignKey("workshop_vehicles.id"), nullable=False)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
-    technician_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    assistant_name = Column(String(255), nullable=True)
+    mechanic_name = Column(String(255), nullable=True)
+    assistant_names = Column(Text, nullable=True)
     type = Column(String(20), nullable=False)
     description = Column(Text, nullable=True)
     diagnosis = Column(Text, nullable=True)

@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Loader2, Search, Edit, Trash2, X, Car } from 'lucide-react';
+import { Plus, Loader2, Search, Edit, Trash2, X, Car, Camera } from 'lucide-react';
 import { workshopAPI, clientsAPI } from '@/lib/api';
 import { toast } from 'sonner';
-import Link from 'next/link';
 
 interface Vehicle {
   id: number;
@@ -20,6 +19,7 @@ interface Vehicle {
   assigned_to?: string;
   brought_by?: string;
   brought_by_phone?: string;
+  image_url?: string;
   is_active: boolean;
 }
 
@@ -38,11 +38,12 @@ export default function VehiclesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showDetail, setShowDetail] = useState<Vehicle | null>(null);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState({
     client_id: '', plate_number: '', color: '', vehicle_type: 'sedan',
     brand: '', model: '', year: '', mileage: '0',
-    assigned_to: '', brought_by: '', brought_by_phone: '',
+    assigned_to: '', brought_by: '', brought_by_phone: '', image_url: '',
   });
 
   useEffect(() => { loadData(); }, []);
@@ -90,7 +91,7 @@ export default function VehiclesPage() {
       model: v.model, year: v.year?.toString() || '',
       mileage: v.mileage?.toString() || '0',
       assigned_to: v.assigned_to || '', brought_by: v.brought_by || '',
-      brought_by_phone: v.brought_by_phone || '',
+      brought_by_phone: v.brought_by_phone || '', image_url: v.image_url || '',
     });
     setShowModal(true);
   };
@@ -103,7 +104,16 @@ export default function VehiclesPage() {
 
   const resetForm = () => {
     setEditingVehicle(null);
-    setFormData({ client_id: '', plate_number: '', color: '', vehicle_type: 'sedan', brand: '', model: '', year: '', mileage: '0', assigned_to: '', brought_by: '', brought_by_phone: '' });
+    setFormData({ client_id: '', plate_number: '', color: '', vehicle_type: 'sedan', brand: '', model: '', year: '', mileage: '0', assigned_to: '', brought_by: '', brought_by_phone: '', image_url: '' });
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error('Máximo 2MB'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setFormData({ ...formData, image_url: ev.target?.result as string });
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -144,7 +154,7 @@ export default function VehiclesPage() {
                 <th className="text-right py-3 px-4 font-semibold text-gray-600">Acciones</th>
               </tr></thead>
               <tbody>{vehicles.map(v => (
-                <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onClick={() => setShowDetail(v)}>
                   <td className="py-3 px-4 font-mono font-bold text-primary">{v.plate_number}</td>
                   <td className="py-3 px-4">
                     <p className="font-medium">{v.brand} {v.model}</p>
@@ -154,7 +164,7 @@ export default function VehiclesPage() {
                   <td className="py-3 px-4 text-sm hidden sm:table-cell capitalize">{v.vehicle_type}</td>
                   <td className="py-3 px-4 text-sm hidden sm:table-cell">{v.mileage?.toLocaleString()} km</td>
                   <td className="py-3 px-4 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}>
                       <button onClick={() => handleEdit(v)} className="text-gray-400 hover:text-primary"><Edit size={16} /></button>
                       <button onClick={() => handleDelete(v.id)} className="text-gray-400 hover:text-danger"><Trash2 size={16} /></button>
                     </div>
@@ -166,6 +176,34 @@ export default function VehiclesPage() {
         )}
       </div>
 
+      {showDetail && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={() => setShowDetail(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-[calc(100%-1rem)] sm:w-full sm:max-w-lg max-h-[95vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h2 className="text-lg sm:text-xl font-bold">Detalle del Vehículo</h2>
+              <button onClick={() => setShowDetail(null)} className="p-1"><X size={24} /></button>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4">
+              {showDetail.image_url && (
+                <img src={showDetail.image_url} alt={`${showDetail.brand} ${showDetail.model}`} className="w-full h-48 object-cover rounded-lg" />
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div><p className="text-xs text-gray-500">Placa</p><p className="font-mono font-bold text-lg text-primary">{showDetail.plate_number}</p></div>
+                <div><p className="text-xs text-gray-500">Tipo</p><p className="font-medium capitalize">{showDetail.vehicle_type}</p></div>
+                <div><p className="text-xs text-gray-500">Marca</p><p className="font-medium">{showDetail.brand || 'N/A'}</p></div>
+                <div><p className="text-xs text-gray-500">Modelo</p><p className="font-medium">{showDetail.model}</p></div>
+                <div><p className="text-xs text-gray-500">Color</p><p className="font-medium">{showDetail.color || 'N/A'}</p></div>
+                <div><p className="text-xs text-gray-500">Año</p><p className="font-medium">{showDetail.year || 'N/A'}</p></div>
+                <div><p className="text-xs text-gray-500">Odómetro</p><p className="font-medium">{showDetail.mileage?.toLocaleString()} km</p></div>
+                <div><p className="text-xs text-gray-500">Cliente</p><p className="font-medium">{showDetail.client?.name || 'N/A'}</p></div>
+              </div>
+              {showDetail.assigned_to && <div><p className="text-xs text-gray-500">Asignado a</p><p className="font-medium">{showDetail.assigned_to}</p></div>}
+              {showDetail.brought_by && <div><p className="text-xs text-gray-500">Traído por</p><p className="font-medium">{showDetail.brought_by} {showDetail.brought_by_phone ? `(${showDetail.brought_by_phone})` : ''}</p></div>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
           <div className="bg-white rounded-t-2xl sm:rounded-xl w-[calc(100%-1rem)] sm:w-full sm:max-w-2xl max-h-[95vh] overflow-y-auto">
@@ -174,6 +212,20 @@ export default function VehiclesPage() {
               <button onClick={() => setShowModal(false)} className="p-1"><X size={24} /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+              <div className="flex flex-col items-center gap-2">
+                {formData.image_url ? (
+                  <img src={formData.image_url} alt="Preview" className="w-32 h-32 object-cover rounded-lg border" />
+                ) : (
+                  <div className="w-32 h-32 bg-gray-100 rounded-lg border-2 border-dashed flex items-center justify-center">
+                    <Camera size={32} className="text-gray-400" />
+                  </div>
+                )}
+                <label className="text-sm text-primary cursor-pointer hover:underline">
+                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  Subir imagen
+                </label>
+                <p className="text-xs text-gray-400">Máx 2MB, JPG/PNG</p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Cliente *</label>

@@ -8,14 +8,15 @@ from io import BytesIO
 from ..database import get_db
 from ..models import (
     WorkshopVehicle, WorkshopOrder, WorkshopChecklist,
-    WorkshopChecklistTemplate, WorkshopPartsUsed,
+    WorkshopChecklistTemplate, WorkshopPartsUsed, WorkshopMechanic,
     Client, User, Product, InventoryMovement, Company
 )
 from ..schemas import (
     WorkshopVehicleCreate, WorkshopVehicleUpdate, WorkshopVehicleResponse,
     WorkshopOrderCreate, WorkshopOrderUpdate, WorkshopOrderResponse,
     WorkshopChecklistResponse, WorkshopChecklistTemplateCreate,
-    WorkshopChecklistTemplateResponse, WorkshopPartsUsedResponse
+    WorkshopChecklistTemplateResponse, WorkshopPartsUsedResponse,
+    WorkshopMechanicCreate, WorkshopMechanicUpdate, WorkshopMechanicResponse
 )
 from ..auth import get_current_user
 
@@ -224,7 +225,6 @@ async def get_workshop_orders(
     limit: int = 100,
     status: str = None,
     order_type: str = None,
-    technician_id: int = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -233,8 +233,6 @@ async def get_workshop_orders(
         query = query.filter(WorkshopOrder.status == status)
     if order_type:
         query = query.filter(WorkshopOrder.type == order_type)
-    if technician_id:
-        query = query.filter(WorkshopOrder.technician_id == technician_id)
     return query.order_by(WorkshopOrder.created_at.desc()).offset(skip).limit(limit).all()
 
 
@@ -275,8 +273,8 @@ async def create_workshop_order(
     order = WorkshopOrder(
         vehicle_id=data.vehicle_id,
         client_id=data.client_id,
-        technician_id=current_user.id,
-        assistant_name=data.assistant_name,
+        mechanic_name=data.mechanic_name,
+        assistant_names=data.assistant_names,
         type=data.type,
         description=data.description,
         diagnosis=data.diagnosis,
@@ -569,7 +567,13 @@ async def generate_checklist_pdf(
     elements.append(t)
     elements.append(Spacer(1, 20))
 
-    elements.append(Paragraph("Mecánico: ______________________    Cliente: ______________________", normal_style))
+    mech_name = order.mechanic_name or "______________________"
+    client_name = client.name if client else "______________________"
+    assistants = order.assistant_names or ""
+    line = f"Mecánico: {mech_name}    Cliente: {client_name}"
+    if assistants:
+        line += f"    Ayudantes: {assistants}"
+    elements.append(Paragraph(line, normal_style))
 
     doc.build(elements)
     buffer.seek(0)
@@ -579,3 +583,59 @@ async def generate_checklist_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=checklist-orden-{order.id}.pdf"}
     )
+
+
+@router.get("/mechanics")
+async def list_mechanics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    mechanics = db.query(WorkshopMechanic).filter(
+        WorkshopMechanic.company_id == current_user.company_id,
+        WorkshopMechanic.is_active == True
+    ).order_by(WorkshopMechanic.name).all()
+    return mechanics
+
+
+@router.post("/mechanics", response_model=WorkshopMechanicResponse)
+async def create_mechanic(
+    data: WorkshopMechanicCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    mechanic = WorkshopMechanic(**data.model_dump(), company_id=current_user.company_id)
+    db.add(mechanic)
+    db.commit()
+    db.refresh(mechanic)
+    return mechanic
+
+
+@router.put("/mechanics/{mechanic_id}", response_model=WorkshopMechanicResponse)
+async def update_mechanic(
+    mechanic_id: int,
+    data: WorkshopMechanicUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    mechanic = db.query(WorkshopMechanic).filter(WorkshopMechanic.id == mechanic_id).first()
+    if not mechanic:
+        raise HTTPException(status_code=404, detail="Mecánico no encontrado")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(mechanic, key, value)
+    db.commit()
+    db.refresh(mechanic)
+    return mechanic
+
+
+@router.delete("/mechanics/{mechanic_id}")
+async def delete_mechanic(
+    mechanic_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    mechanic = db.query(WorkshopMechanic).filter(WorkshopMechanic.id == mechanic_id).first()
+    if not mechanic:
+        raise HTTPException(status_code=404, detail="Mecánico no encontrado")
+    mechanic.is_active = False
+    db.commit()
+    return {"message": "Mecánico desactivado"}
