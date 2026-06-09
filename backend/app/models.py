@@ -416,7 +416,6 @@ class WorkshopOrder(Base):
 
     vehicle = relationship("WorkshopVehicle", back_populates="orders")
     client = relationship("Client")
-    technician = relationship("User")
     checklist = relationship("WorkshopChecklist", back_populates="order", cascade="all, delete-orphan")
     parts_used = relationship("WorkshopPartsUsed", back_populates="order", cascade="all, delete-orphan")
 
