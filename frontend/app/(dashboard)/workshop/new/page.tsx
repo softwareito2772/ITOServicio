@@ -125,9 +125,9 @@ export default function NewOrderPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Mecánico *</label>
               <select value={formData.mechanic_name} onChange={e => setFormData({...formData, mechanic_name: e.target.value})} className="input-field" required>
-                <option value="">Seleccionar mecánico</option>
-                {mechanics.filter((m: any) => m.role === 'mecanico').map((m: any) => (
-                  <option key={m.id} value={m.name}>{m.name}{m.specialty ? ` - ${m.specialty}` : ''}</option>
+                <option value="">Seleccionar personal</option>
+                {mechanics.map((m: any) => (
+                  <option key={m.id} value={m.name}>{m.name} ({m.role === 'mecanico' ? 'Mecánico' : 'Ayudante'}){m.specialty ? ` - ${m.specialty}` : ''}</option>
                 ))}
               </select>
             </div>
