@@ -33,20 +33,20 @@ import {
 import { dashboardAPI } from '@/lib/api';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Clientes', href: '/clients', icon: Users },
-  { name: 'Equipos', href: '/equipment', icon: Monitor },
-  { name: 'Productos', href: '/products', icon: Package },
-  { name: 'Inventario', href: '/inventory', icon: Warehouse },
-  { name: 'Ventas', href: '/sales', icon: ShoppingCart },
-  { name: 'Mantenimiento', href: '/maintenance', icon: Wrench },
-  { name: 'Reparaciones', href: '/repairs', icon: Hammer },
-  { name: 'Taller', href: '/workshop', icon: Car },
-  { name: 'Mecánicos', href: '/workshop/mechanics', icon: Wrench },
-  { name: 'Reporte Taller', href: '/workshop/report', icon: BarChart3 },
-  { name: 'Garantías', href: '/warranties', icon: Shield },
-  { name: 'Reportes', href: '/reports', icon: BarChart3 },
-  { name: 'Configuración', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: '' },
+  { name: 'Clientes', href: '/clients', icon: Users, module: 'clientes' },
+  { name: 'Equipos', href: '/equipment', icon: Monitor, module: 'equipos' },
+  { name: 'Productos', href: '/products', icon: Package, module: 'productos' },
+  { name: 'Inventario', href: '/inventory', icon: Warehouse, module: 'inventario' },
+  { name: 'Ventas', href: '/sales', icon: ShoppingCart, module: 'ventas' },
+  { name: 'Mantenimiento', href: '/maintenance', icon: Wrench, module: 'mantenimiento' },
+  { name: 'Reparaciones', href: '/repairs', icon: Hammer, module: 'reparaciones' },
+  { name: 'Taller', href: '/workshop', icon: Car, module: 'taller' },
+  { name: 'Mecánicos', href: '/workshop/mechanics', icon: Wrench, module: 'taller' },
+  { name: 'Reporte Taller', href: '/workshop/report', icon: BarChart3, module: 'taller' },
+  { name: 'Garantías', href: '/warranties', icon: Shield, module: 'garantias' },
+  { name: 'Reportes', href: '/reports', icon: BarChart3, module: '' },
+  { name: 'Configuración', href: '/settings', icon: Settings, module: '' },
 ];
 
 const THEME_KEY = 'ito-theme';
@@ -94,6 +94,7 @@ export default function DashboardLayout({
   const [currentTheme, setCurrentTheme] = useState('theme-light');
   const [companyName, setCompanyName] = useState('ITO Servicios');
   const [companyLogo, setCompanyLogo] = useState('/logo.png');
+  const [companyModules, setCompanyModules] = useState<string[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -117,6 +118,7 @@ export default function DashboardLayout({
       const company = JSON.parse(companyStr);
       if (company.name) setCompanyName(company.name);
       if (company.logo_url) setCompanyLogo(company.logo_url);
+      if (company.modules) setCompanyModules(company.modules);
       if (company.primary_color) {
         document.documentElement.style.setProperty('--primary', company.primary_color);
       }
@@ -196,7 +198,12 @@ export default function DashboardLayout({
           </div>
 
           <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-            {navigation.map((item) => {
+            {navigation.filter(item => {
+              if (!item.module) return true;
+              if (user?.role === 'super_admin') return true;
+              if (companyModules.length === 0) return true;
+              return companyModules.includes(item.module);
+            }).map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
