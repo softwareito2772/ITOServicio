@@ -50,7 +50,7 @@ export default function DailyReportPage() {
               <p className="text-xs text-gray-500">Entregados hoy</p>
             </div>
             <div className="card p-4 text-center">
-              <DollarSign size={24} className mx-auto text-primary mb-2" />
+              <DollarSign size={24} className="mx-auto text-primary mb-2" />
               <p className="text-2xl font-bold text-primary">{formatCurrency(report.summary.total_revenue)}</p>
               <p className="text-xs text-gray-500">Ingresos del día</p>
             </div>
