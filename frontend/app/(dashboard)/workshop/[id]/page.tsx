@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Loader2, Save, CheckCircle, X, Download, Clock, Wrench, Car, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, CheckCircle, X, Download, Clock, Wrench, Car, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatDate, formatCurrency } from '@/lib/utils';
@@ -36,6 +36,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [checklistTemplate, setChecklistTemplate] = useState<any[]>([]);
   const [newChecklist, setNewChecklist] = useState<any[]>([]);
   const [savingChecklist, setSavingChecklist] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { loadOrder(); }, [id]);
 
@@ -116,6 +119,18 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     } finally { setSavingChecklist(false); }
   };
 
+  const handleDelete = async () => {
+    if (!deleteReason.trim()) { toast.error('Debes indicar el motivo'); return; }
+    setDeleting(true);
+    try {
+      await workshopAPI.deleteOrder(order.id, deleteReason);
+      toast.success('Orden cancelada. Stock devuelto.');
+      router.push('/workshop');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Error al cancelar');
+    } finally { setDeleting(false); }
+  };
+
   const generatePDF = async () => {
     setGeneratingPDF(true);
     try {
@@ -189,6 +204,11 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             {generatingPDF ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
             PDF
           </button>
+          {!['cancelled', 'delivered'].includes(order.status) && (
+            <button onClick={() => setShowDeleteModal(true)} className="flex items-center gap-2 text-sm px-3 py-1 rounded-lg border border-danger/30 text-danger hover:bg-danger/10 transition">
+              <Trash2 size={16} /> Cancelar
+            </button>
+          )}
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${badge.color}`}>{badge.label}</span>
         </div>
       </div>
@@ -412,6 +432,43 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
           </div>
         </div>
       </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-[calc(100%-1rem)] sm:w-full sm:max-w-lg max-h-[95vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h2 className="text-lg font-bold text-danger">Cancelar Orden</h2>
+              <button onClick={() => setShowDeleteModal(false)} className="p-1"><X size={24} /></button>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="p-3 bg-gray-50 rounded-lg text-sm space-y-1">
+                <p><span className="text-gray-500">Orden:</span> <strong>#{order.id}</strong></p>
+                <p><span className="text-gray-500">Vehículo:</span> {order.vehicle?.plate_number} - {order.vehicle?.brand} {order.vehicle?.model}</p>
+                <p><span className="text-gray-500">Cliente:</span> {order.client?.name}</p>
+                <p><span className="text-gray-500">Tipo:</span> <span className="capitalize">{order.type}</span></p>
+                <p><span className="text-gray-500">Mecánico:</span> {order.mechanic_name}</p>
+                <p><span className="text-gray-500">Costo total:</span> <strong>{formatCurrency(order.total_cost)}</strong></p>
+                {order.parts_used && order.parts_used.length > 0 && (
+                  <p><span className="text-gray-500">Piezas:</span> {order.parts_used.length} pieza(s) que serán devueltas al inventario</p>
+                )}
+              </div>
+              <div className="p-3 bg-warning/20 rounded-lg text-sm text-warningDark">
+                <p>Al cancelar se devolverá el stock de piezas al inventario. Esta acción no se puede deshacer.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Motivo de cancelación *</label>
+                <textarea value={deleteReason} onChange={e => setDeleteReason(e.target.value)} className="input-field" rows={3} placeholder="Describe el motivo de la cancelación..." required />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setShowDeleteModal(false)} className="btn-outline flex-1">Volver</button>
+                <button onClick={handleDelete} disabled={deleting || !deleteReason.trim()} className="flex-1 px-4 py-2 bg-danger text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2">
+                  {deleting ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />} Confirmar Cancelación
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

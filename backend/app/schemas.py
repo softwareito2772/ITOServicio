@@ -658,6 +658,7 @@ class WorkshopOrderUpdate(BaseModel):
     customer_notes: Optional[str] = None
     picked_up_by: Optional[str] = None
     picked_up_signature: Optional[str] = None
+    cancel_reason: Optional[str] = None
     next_maintenance_date: Optional[str] = None
     next_maintenance_km: Optional[int] = None
 
@@ -688,6 +689,8 @@ class WorkshopOrderResponse(BaseModel):
     picked_up_by: Optional[str] = None
     picked_up_signature: Optional[str] = None
     picked_up_datetime: Optional[datetime] = None
+    cancel_reason: Optional[str] = None
+    cancelled_at: Optional[datetime] = None
     next_maintenance_date: Optional[date] = None
     next_maintenance_km: Optional[int] = None
     company_id: Optional[int] = None

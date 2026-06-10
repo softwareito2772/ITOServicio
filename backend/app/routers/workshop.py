@@ -583,15 +583,40 @@ async def add_checklist_items(
 @router.delete("/{order_id}")
 async def delete_workshop_order(
     order_id: int,
+    cancel_reason: str = "",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     order = db.query(WorkshopOrder).filter(WorkshopOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Orden no encontrada")
+    if order.status == "cancelled":
+        raise HTTPException(status_code=400, detail="La orden ya está cancelada")
+    if order.status == "delivered":
+        raise HTTPException(status_code=400, detail="No se puede cancelar una orden ya entregada")
+
+    if not cancel_reason:
+        raise HTTPException(status_code=400, detail="Debes indicar el motivo de cancelación")
+
+    parts = db.query(WorkshopPartsUsed).filter(WorkshopPartsUsed.order_id == order_id).all()
+    for part in parts:
+        product = db.query(Product).filter(Product.id == part.product_id).first()
+        if product:
+            product.stock += part.quantity
+            db.add(InventoryMovement(
+                product_id=part.product_id,
+                quantity=part.quantity,
+                movement_type="entrada",
+                reason=f"Devolución - Orden Taller #{order.id} cancelada",
+                created_by=current_user.id,
+                company_id=current_user.company_id
+            ))
+
     order.status = "cancelled"
+    order.cancel_reason = cancel_reason
+    order.cancelled_at = datetime.now()
     db.commit()
-    return {"message": "Orden cancelada"}
+    return {"message": "Orden cancelada. Stock devuelto."}
 
 
 @router.get("/{order_id}/checklist-pdf")

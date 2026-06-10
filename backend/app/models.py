@@ -408,6 +408,8 @@ class WorkshopOrder(Base):
     picked_up_by = Column(String(255), nullable=True)
     picked_up_signature = Column(Text, nullable=True)
     picked_up_datetime = Column(DateTime, nullable=True)
+    cancel_reason = Column(Text, nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
     next_maintenance_date = Column(Date, nullable=True)
     next_maintenance_km = Column(Integer, nullable=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
