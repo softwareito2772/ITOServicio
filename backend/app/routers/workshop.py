@@ -49,56 +49,61 @@ def _seed_checklist_template(db: Session, vehicle_type: str, company_id: int):
         ("Línea de frenos", "frenos", 15),
         ("Presión de llantas", "llantas", 16),
         ("Desgaste de llantas", "llantas", 17),
-        ("Rotación de llantas", "llantas", 18),
-        ("Estado de rin", "llantas", 19),
-        ("Luces delanteras", "luces", 20),
-        ("Luces traseras", "luces", 21),
-        ("Direccional(es)", "luces", 22),
-        ("Luces de freno", "luces", 23),
-        ("Luces de reversa", "luces", 24),
-        ("Amortiguadores", "suspension", 25),
-        ("Rótulas", "suspension", 26),
-        ("Brazos de control", "suspension", 27),
-        ("Batería", "electrico", 28),
+        ("Alineación", "llantas", 18),
+        ("Luces delanteras", "luces", 19),
+        ("Luces traseras", "luces", 20),
+        ("Direccionales", "luces", 21),
+        ("Luces de freno", "luces", 22),
+        ("Freno de mano", "frenos", 23),
+        ("Amortiguadores", "suspension", 24),
+        ("Brazos de suspensión", "suspension", 25),
+        ("Rotulas", "suspension", 26),
+        ("Batería", "electrico", 27),
+        ("Cables de batería", "electrico", 28),
         ("Alternador", "electrico", 29),
-        ("Sistema de carga", "electrico", 30),
-        ("Embrague", "transmision", 31),
-        ("Escape", "transmision", 32),
-        ("Aire acondicionado", "transmision", 33),
-        ("Dirección", "transmision", 34),
-        ("Nivel de odómetro", "general", 35),
-        ("Documentación del vehículo", "general", 36),
-        ("Limpieza interior", "general", 37),
+        ("Marcha", "electrico", 30),
+        ("Aceite de caja", "transmision", 31),
+        ("Embrague", "transmision", 32),
+        ("Fugas generales", "general", 33),
+        ("Parabrisas", "general", 34),
+        ("Espejos", "general", 35),
+        ("Cinturones", "general", 36),
+        ("Funcionamiento general del motor", "general", 37),
     ]
 
     pickup_extra = [
-        ("Estado de la caja", "carga", 38),
-        ("Bisagras de tapa", "carga", 39),
-        ("Piso de carga", "carga", 40),
-        ("Ballestas/resortes traseros", "suspension", 41),
-        ("Barra estabilizadora", "suspension", 42),
-        ("Diferencial", "transmision", 43),
-        ("Cardán", "transmision", 44),
+        ("Diferencial", "transmision", 38),
+        ("Caja de transferencia", "transmision", 39),
+        ("Sistema 4x4", "transmision", 40),
+        ("Línea de aceite del motor", "motor", 41),
+        ("Capacidad de carga", "carga", 42),
+        ("Sistema de frenos de aire", "frenos", 43),
     ]
 
-    items = sedan_items
-    if vehicle_type == "pickup":
-        items = sedan_items + pickup_extra
+    suv_extra = [
+        ("Diferencial", "transmision", 38),
+        ("Suspensión neumática", "suspension", 39),
+    ]
 
-    for name, cat, order in items:
+    items = list(sedan_items)
+    if vehicle_type == "pickup":
+        items.extend(pickup_extra)
+    elif vehicle_type == "suv":
+        items.extend(suv_extra)
+
+    for item_name, cat, order_idx in items:
         db.add(WorkshopChecklistTemplate(
             vehicle_type=vehicle_type,
-            item_name=name,
+            item_name=item_name,
             item_category=cat,
-            sort_order=order,
-            is_active=True,
+            sort_order=order_idx,
             company_id=company_id
         ))
-    db.flush()
+    db.commit()
 
 
 @router.get("/vehicles", response_model=List[WorkshopVehicleResponse])
-async def get_workshop_vehicles(
+async def list_workshop_vehicles(
     skip: int = 0,
     limit: int = 100,
     search: str = None,
@@ -295,6 +300,133 @@ async def get_workshop_orders(
     return query.order_by(WorkshopOrder.created_at.desc()).offset(skip).limit(limit).all()
 
 
+@router.get("/daily-report")
+async def get_daily_report(
+    report_date: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    target_date = date.fromisoformat(report_date) if report_date else date.today()
+    query = db.query(WorkshopOrder)
+    if current_user.company_id:
+        query = query.filter(WorkshopOrder.company_id == current_user.company_id)
+
+    worked_today = query.filter(
+        WorkshopOrder.status == "delivered",
+        func.date(WorkshopOrder.picked_up_datetime) == target_date
+    ).all()
+
+    waiting = query.filter(
+        WorkshopOrder.status.in_(["in_progress", "waiting_parts", "pending"]),
+    ).all()
+
+    ready_not_picked = query.filter(
+        WorkshopOrder.status == "completed",
+    ).all()
+
+    total_revenue = sum(o.total_cost or 0 for o in worked_today)
+    total_worked = len(worked_today)
+
+    return {
+        "date": str(target_date),
+        "worked_today": [{
+            "id": o.id,
+            "vehicle": f"{o.vehicle.brand} {o.vehicle.model}" if o.vehicle else "N/A",
+            "plate": o.vehicle.plate_number if o.vehicle else "N/A",
+            "client": o.client.name if o.client else "N/A",
+            "mechanic": o.mechanic_name or "N/A",
+            "type": o.type,
+            "total_cost": o.total_cost or 0,
+            "picked_up_by": o.picked_up_by or "N/A",
+            "days_in_shop": (o.picked_up_datetime - o.entry_datetime).days if o.picked_up_datetime and o.entry_datetime else 0,
+        } for o in worked_today],
+        "waiting": [{
+            "id": o.id,
+            "vehicle": f"{o.vehicle.brand} {o.vehicle.model}" if o.vehicle else "N/A",
+            "plate": o.vehicle.plate_number if o.vehicle else "N/A",
+            "client": o.client.name if o.client else "N/A",
+            "mechanic": o.mechanic_name or "N/A",
+            "status": o.status,
+            "days_in_shop": (datetime.now() - o.entry_datetime).days if o.entry_datetime else 0,
+        } for o in waiting],
+        "ready_not_picked": [{
+            "id": o.id,
+            "vehicle": f"{o.vehicle.brand} {o.vehicle.model}" if o.vehicle else "N/A",
+            "plate": o.vehicle.plate_number if o.vehicle else "N/A",
+            "client": o.client.name if o.client else "N/A",
+            "days_waiting": (datetime.now() - o.exit_datetime).days if o.exit_datetime else 0,
+            "total_cost": o.total_cost or 0,
+        } for o in ready_not_picked],
+        "summary": {
+            "total_worked": total_worked,
+            "total_revenue": total_revenue,
+            "total_waiting": len(waiting),
+            "total_ready_not_picked": len(ready_not_picked),
+        }
+    }
+
+
+@router.get("/summary/stats")
+async def get_workshop_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    base = db.query(WorkshopOrder)
+    if current_user.company_id:
+        base = base.filter(WorkshopOrder.company_id == current_user.company_id)
+
+    active = base.filter(WorkshopOrder.status.in_(["pending", "in_progress", "waiting_parts"])).count()
+    completed_today = base.filter(
+        WorkshopOrder.status == "completed",
+        func.date(WorkshopOrder.exit_datetime) == date.today()
+    ).count()
+    completed_month = base.filter(
+        WorkshopOrder.status == "completed",
+        func.date(WorkshopOrder.exit_datetime) >= date.today().replace(day=1)
+    ).count()
+    delivered_pending = base.filter(WorkshopOrder.status == "completed").count()
+
+    avg_days = 0
+    completed_orders = base.filter(WorkshopOrder.exit_datetime.isnot(None)).all()
+    if completed_orders:
+        days = [(o.exit_datetime - o.entry_datetime).days for o in completed_orders if o.entry_datetime]
+        avg_days = round(sum(days) / len(days), 1) if days else 0
+
+    total_revenue = base.filter(WorkshopOrder.status == "delivered").with_entities(
+        func.sum(WorkshopOrder.total_cost)
+    ).scalar() or 0
+
+    avg_cost = 0
+    delivered = base.filter(WorkshopOrder.status == "delivered").all()
+    if delivered:
+        avg_cost = round(total_revenue / len(delivered), 2)
+
+    return {
+        "active_orders": active,
+        "completed_today": completed_today,
+        "completed_this_month": completed_month,
+        "pending_pickup": delivered_pending,
+        "avg_days_in_shop": avg_days,
+        "total_revenue": total_revenue,
+        "avg_cost_per_order": avg_cost
+    }
+
+
+@router.get("/vehicles/{vehicle_id}/history")
+async def get_vehicle_history(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+    orders = db.query(WorkshopOrder).filter(
+        WorkshopOrder.vehicle_id == vehicle_id
+    ).order_by(WorkshopOrder.created_at.desc()).all()
+    return {"vehicle": vehicle, "orders": orders}
+
+
 @router.get("/{order_id}", response_model=WorkshopOrderResponse)
 async def get_workshop_order(
     order_id: int,
@@ -423,6 +555,31 @@ async def update_workshop_order(
     return order
 
 
+@router.post("/{order_id}/checklist")
+async def add_checklist_items(
+    order_id: int,
+    items: List[dict],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    order = db.query(WorkshopOrder).filter(WorkshopOrder.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+
+    for item in items:
+        db.add(WorkshopChecklist(
+            order_id=order_id,
+            item_name=item.get("item_name", ""),
+            item_category=item.get("item_category", ""),
+            status=item.get("status", "ok"),
+            notes=item.get("notes", ""),
+            needs_replacement=item.get("needs_replacement", False)
+        ))
+
+    db.commit()
+    return {"message": f"{len(items)} ítems agregados"}
+
+
 @router.delete("/{order_id}")
 async def delete_workshop_order(
     order_id: int,
@@ -432,68 +589,9 @@ async def delete_workshop_order(
     order = db.query(WorkshopOrder).filter(WorkshopOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Orden no encontrada")
-    db.delete(order)
+    order.status = "cancelled"
     db.commit()
-    return {"message": "Orden eliminada"}
-
-
-@router.get("/summary/stats")
-async def get_workshop_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    base = db.query(WorkshopOrder).filter(WorkshopOrder.company_id == current_user.company_id)
-
-    active = base.filter(WorkshopOrder.status.in_(["pending", "in_progress", "waiting_parts"])).count()
-    completed_today = base.filter(
-        WorkshopOrder.status == "completed",
-        func.date(WorkshopOrder.exit_datetime) == date.today()
-    ).count()
-    completed_month = base.filter(
-        WorkshopOrder.status == "completed",
-        func.date(WorkshopOrder.exit_datetime) >= date.today().replace(day=1)
-    ).count()
-    delivered_pending = base.filter(WorkshopOrder.status == "completed").count()
-
-    avg_days = 0
-    completed_orders = base.filter(WorkshopOrder.exit_datetime.isnot(None)).all()
-    if completed_orders:
-        days = [(o.exit_datetime - o.entry_datetime).days for o in completed_orders if o.entry_datetime]
-        avg_days = round(sum(days) / len(days), 1) if days else 0
-
-    total_revenue = base.filter(WorkshopOrder.status == "delivered").with_entities(
-        func.sum(WorkshopOrder.total_cost)
-    ).scalar() or 0
-
-    avg_cost = 0
-    delivered = base.filter(WorkshopOrder.status == "delivered").all()
-    if delivered:
-        avg_cost = round(total_revenue / len(delivered), 2)
-
-    return {
-        "active_orders": active,
-        "completed_today": completed_today,
-        "completed_this_month": completed_month,
-        "pending_pickup": delivered_pending,
-        "avg_days_in_shop": avg_days,
-        "total_revenue": total_revenue,
-        "avg_cost_per_order": avg_cost
-    }
-
-
-@router.get("/vehicles/{vehicle_id}/history")
-async def get_vehicle_history(
-    vehicle_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == vehicle_id).first()
-    if not vehicle:
-        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
-    orders = db.query(WorkshopOrder).filter(
-        WorkshopOrder.vehicle_id == vehicle_id
-    ).order_by(WorkshopOrder.created_at.desc()).all()
-    return {"vehicle": vehicle, "orders": orders}
+    return {"message": "Orden cancelada"}
 
 
 @router.get("/{order_id}/checklist-pdf")
@@ -520,7 +618,9 @@ async def generate_checklist_pdf(
     styles = getSampleStyleSheet()
     elements = []
 
-    company = db.query(Company).filter(Company.id == current_user.company_id).first() if current_user.company_id else None
+    company = None
+    if current_user.company_id:
+        company = db.query(Company).filter(Company.id == current_user.company_id).first()
 
     title_style = ParagraphStyle('Title2', parent=styles['Heading1'], fontSize=16, spaceAfter=6)
     subtitle_style = ParagraphStyle('Subtitle2', parent=styles['Heading2'], fontSize=12, spaceAfter=4)
@@ -532,6 +632,8 @@ async def generate_checklist_pdf(
     elements.append(Paragraph(f"Fecha: {order.created_at.strftime('%d/%m/%Y') if order.created_at else 'N/A'}", normal_style))
     elements.append(Paragraph(f"Tipo: {'Mantenimiento' if order.type == 'mantenimiento' else 'Reparación'}", normal_style))
     elements.append(Spacer(1, 12))
+
+    client_obj = db.query(Client).filter(Client.id == order.client_id).first()
 
     v = order.vehicle
     if v:
@@ -551,6 +653,9 @@ async def generate_checklist_pdf(
         elements.append(t)
         elements.append(Spacer(1, 12))
 
+    if order.description:
+        elements.append(Paragraph(f"<b>Descripción:</b> {order.description}", normal_style))
+
     if order.checklist:
         elements.append(Paragraph("CHECKLIST DE INGRESO", subtitle_style))
         cat_names = {'motor': 'Motor', 'frenos': 'Frenos', 'llantas': 'Llantas', 'luces': 'Luces',
@@ -558,11 +663,14 @@ async def generate_checklist_pdf(
                      'general': 'General', 'carga': 'Carga'}
         grouped = {}
         for item in order.checklist:
-            if item.item_category not in grouped:
-                grouped[item.item_category] = []
-            grouped[item.item_category].append(item)
+            if item.status != "na":
+                if item.item_category not in grouped:
+                    grouped[item.item_category] = []
+                grouped[item.item_category].append(item)
 
         for cat, items in grouped.items():
+            if not items:
+                continue
             elements.append(Paragraph(f"<b>{cat_names.get(cat, cat)}</b>", normal_style))
             data = [['Estado', 'Ítem', 'Notas']]
             for item in items:
@@ -596,7 +704,8 @@ async def generate_checklist_pdf(
         data = [['Pieza', 'Cant', 'Costo', 'Precio']]
         total_parts = 0
         for part in order.parts_used:
-            name = part.product.name if part.product else 'N/A'
+            product = db.query(Product).filter(Product.id == part.product_id).first()
+            name = product.name if product else 'N/A'
             data.append([name, str(part.quantity), f"${part.unit_cost:.2f}", f"${part.unit_price:.2f}"])
             total_parts += part.unit_price * part.quantity
         data.append(['', '', 'Total:', f"${total_parts:.2f}"])
@@ -627,12 +736,16 @@ async def generate_checklist_pdf(
     elements.append(Spacer(1, 20))
 
     mech_name = order.mechanic_name or "______________________"
-    client_name = client.name if client else "______________________"
+    client_name = client_obj.name if client_obj else "______________________"
     assistants = order.assistant_names or ""
     line = f"Mecánico: {mech_name}    Cliente: {client_name}"
     if assistants:
         line += f"    Ayudantes: {assistants}"
     elements.append(Paragraph(line, normal_style))
+
+    if order.status == "delivered" and order.picked_up_by:
+        elements.append(Spacer(1, 8))
+        elements.append(Paragraph(f"Retirado por: {order.picked_up_by}    Fecha: {order.picked_up_datetime.strftime('%d/%m/%Y %H:%M') if order.picked_up_datetime else 'N/A'}", normal_style))
 
     doc.build(elements)
     buffer.seek(0)

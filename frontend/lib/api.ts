@@ -264,6 +264,8 @@ export const workshopAPI = {
   getChecklistTemplate: (vehicleType: string) => api.get(`/workshop/checklist-templates/${vehicleType}`),
   createChecklistTemplate: (data: any) => api.post('/workshop/checklist-templates', data),
   deleteChecklistTemplate: (id: number) => api.delete(`/workshop/checklist-templates/${id}`),
+  addChecklistItems: (orderId: number, items: any[]) => api.post(`/workshop/${orderId}/checklist`, items),
+  getDailyReport: (date?: string) => api.get('/workshop/daily-report' + (date ? `?report_date=${date}` : '')),
   getMechanics: () => api.get('/workshop/mechanics'),
   createMechanic: (data: any) => api.post('/workshop/mechanics', data),
   updateMechanic: (id: number, data: any) => api.put(`/workshop/mechanics/${id}`, data),

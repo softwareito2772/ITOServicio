@@ -43,6 +43,7 @@ const navigation = [
   { name: 'Reparaciones', href: '/repairs', icon: Hammer },
   { name: 'Taller', href: '/workshop', icon: Car },
   { name: 'Mecánicos', href: '/workshop/mechanics', icon: Wrench },
+  { name: 'Reporte Taller', href: '/workshop/report', icon: BarChart3 },
   { name: 'Garantías', href: '/warranties', icon: Shield },
   { name: 'Reportes', href: '/reports', icon: BarChart3 },
   { name: 'Configuración', href: '/settings', icon: Settings },

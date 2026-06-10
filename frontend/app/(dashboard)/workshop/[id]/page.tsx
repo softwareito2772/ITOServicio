@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Loader2, Save, CheckCircle, X, Download, Clock, Wrench, Car } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, CheckCircle, X, Download, Clock, Wrench, Car, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatDate, formatCurrency } from '@/lib/utils';
@@ -21,6 +21,8 @@ const CHECKLIST_CATEGORIES: Record<string, string> = {
   general: 'General', carga: 'Carga'
 };
 
+const CHECKLIST_STATUS_OPTIONS = ['ok', 'reemplazar', 'limpiar', 'ajustar', 'reparar', 'na'];
+
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const [order, setOrder] = useState<any>(null);
@@ -29,6 +31,11 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [collapsedCats, setCollapsedCats] = useState<Record<string, boolean>>({});
+  const [showChecklistForm, setShowChecklistForm] = useState(false);
+  const [checklistTemplate, setChecklistTemplate] = useState<any[]>([]);
+  const [newChecklist, setNewChecklist] = useState<any[]>([]);
+  const [savingChecklist, setSavingChecklist] = useState(false);
 
   useEffect(() => { loadOrder(); }, [id]);
 
@@ -65,6 +72,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       if (editData.exit_km) payload.exit_km = parseInt(editData.exit_km);
       if (editData.picked_up_by) payload.picked_up_by = editData.picked_up_by;
 
+      if (editData.status === 'delivered' && !editData.picked_up_by) {
+        toast.error('Debes indicar quién retira el vehículo');
+        setSaving(false);
+        return;
+      }
+
       await workshopAPI.updateOrder(order.id, payload);
       toast.success('Orden actualizada');
       setEditMode(false);
@@ -72,6 +85,35 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Error al actualizar');
     } finally { setSaving(false); }
+  };
+
+  const loadChecklistTemplate = async () => {
+    if (!order?.vehicle?.vehicle_type) return;
+    try {
+      const res = await workshopAPI.getChecklistTemplate(order.vehicle.vehicle_type);
+      const existing = (order.checklist || []).map((c: any) => c.item_name);
+      const filtered = res.data.filter((t: any) => !existing.includes(t.item_name));
+      setChecklistTemplate(filtered);
+      setNewChecklist(filtered.map((t: any) => ({
+        item_name: t.item_name, item_category: t.item_category,
+        status: '', notes: '', needs_replacement: false,
+      })));
+      setShowChecklistForm(true);
+    } catch { toast.error('Error al cargar checklist'); }
+  };
+
+  const saveNewChecklist = async () => {
+    const itemsToSave = newChecklist.filter(i => i.status !== '' && i.status !== 'na');
+    if (itemsToSave.length === 0) { toast.error('Selecciona al menos un estado'); return; }
+    setSavingChecklist(true);
+    try {
+      await workshopAPI.addChecklistItems(order.id, itemsToSave);
+      toast.success(`${itemsToSave.length} ítems agregados`);
+      setShowChecklistForm(false);
+      loadOrder();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Error al guardar');
+    } finally { setSavingChecklist(false); }
   };
 
   const generatePDF = async () => {
@@ -112,8 +154,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
   const getDaysInShop = () => {
     if (!order?.entry_datetime) return 0;
-    const end = order.exit_datetime ? new Date(order.exit_datetime) : new Date();
-    return Math.floor((end.getTime() - new Date(order.entry_datetime).getTime()) / 86400000);
+    const end = order.picked_up_datetime || new Date();
+    return Math.floor((new Date(end).getTime() - new Date(order.entry_datetime).getTime()) / 86400000);
+  };
+
+  const toggleCategory = (cat: string) => {
+    setCollapsedCats(prev => ({ ...prev, [cat]: !prev[cat] }));
   };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={32} /></div>;
@@ -141,7 +187,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         <div className="flex gap-2 flex-wrap">
           <button onClick={generatePDF} disabled={generatingPDF} className="btn-outline flex items-center gap-2 text-sm">
             {generatingPDF ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
-            PDF Checklist
+            PDF
           </button>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${badge.color}`}>{badge.label}</span>
         </div>
@@ -159,25 +205,40 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
+                {editData.status === 'delivered' && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg space-y-3">
+                    <p className="text-sm font-medium text-yellow-800">Datos de retiro obligatorios:</p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de quien retira *</label>
+                      <input type="text" value={editData.picked_up_by} onChange={e => setEditData({...editData, picked_up_by: e.target.value})} className="input-field" placeholder="Nombre completo" required />
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico</label>
-                  <textarea value={editData.diagnosis} onChange={e => setEditData({...editData, diagnosis: e.target.value})} className="input-field" rows={3} />
+                  <textarea value={editData.diagnosis} onChange={e => setEditData({...editData, diagnosis: e.target.value})} className="input-field" rows={2} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Solución aplicada</label>
-                  <textarea value={editData.solution} onChange={e => setEditData({...editData, solution: e.target.value})} className="input-field" rows={3} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Solución</label>
+                  <textarea value={editData.solution} onChange={e => setEditData({...editData, solution: e.target.value})} className="input-field" rows={2} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones del mecánico</label>
-                  <textarea value={editData.mechanic_observations} onChange={e => setEditData({...editData, mechanic_observations: e.target.value})} className="input-field" rows={3} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Recomendaciones</label>
-                  <textarea value={editData.recommendations} onChange={e => setEditData({...editData, recommendations: e.target.value})} className="input-field" rows={3} />
+                  <textarea value={editData.mechanic_observations} onChange={e => setEditData({...editData, mechanic_observations: e.target.value})} className="input-field" rows={2} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mano de obra ($)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Recomendaciones</label>
+                    <textarea value={editData.recommendations} onChange={e => setEditData({...editData, recommendations: e.target.value})} className="input-field" rows={2} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Problemas urgentes</label>
+                    <textarea value={editData.urgent_issues} onChange={e => setEditData({...editData, urgent_issues: e.target.value})} className="input-field" rows={2} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Costo mano de obra ($)</label>
                     <input type="number" step="0.01" value={editData.cost_labor} onChange={e => setEditData({...editData, cost_labor: e.target.value})} className="input-field" />
                   </div>
                   <div>
@@ -212,28 +273,92 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             </div>
           )}
 
-          {Object.keys(groupedChecklist).length > 0 && (
-            <div className="card p-4 sm:p-6">
-              <h2 className="font-bold text-gray-800 mb-4">Checklist de Ingreso</h2>
+          <div className="card p-4 sm:p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-gray-800">Checklist ({order.checklist?.length || 0} puntos)</h2>
+              {!showChecklistForm && (
+                <button onClick={loadChecklistTemplate} className="text-sm text-primary hover:underline flex items-center gap-1">
+                  <Plus size={14} /> Agregar ítems
+                </button>
+              )}
+            </div>
+
+            {Object.keys(groupedChecklist).length === 0 && !showChecklistForm ? (
+              <p className="text-sm text-gray-500">Sin checklist. Haz clic en "Agregar ítems" para comenzar.</p>
+            ) : (
               <div className="space-y-4">
                 {Object.entries(groupedChecklist).map(([cat, items]: [string, any]) => (
                   <div key={cat}>
-                    <h3 className="font-semibold text-gray-700 mb-2 text-sm capitalize">{CHECKLIST_CATEGORIES[cat] || cat}</h3>
+                    <button onClick={() => toggleCategory(cat)} className="flex items-center gap-2 w-full text-left mb-2">
+                      {collapsedCats[cat] ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                      <h3 className="font-semibold text-gray-700 capitalize">{CHECKLIST_CATEGORIES[cat] || cat}</h3>
+                      <span className="text-xs text-gray-400">({items.length})</span>
+                    </button>
+                    {!collapsedCats[cat] && (
+                      <div className="space-y-1 ml-6">
+                        {items.map((item: any) => (
+                          <div key={item.id} className="flex items-center gap-2 text-sm p-1">
+                            <span className={`w-2 h-2 rounded-full ${item.status === 'ok' ? 'bg-success' : item.status === 'reemplazar' ? 'bg-danger' : item.status === 'na' ? 'bg-gray-300' : 'bg-warning'}`} />
+                            <span className="flex-1">{item.item_name}</span>
+                            <span className="text-xs text-gray-500 capitalize">{item.status}</span>
+                            {item.notes && <span className="text-xs text-gray-400">({item.notes})</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {showChecklistForm && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
+                <h3 className="font-semibold text-gray-700">Agregar ítems al checklist</h3>
+                <p className="text-xs text-gray-500">Los ítems marcados como "NA" no se guardarán ni aparecerán en el PDF</p>
+                {Object.entries(
+                  newChecklist.reduce((acc: any, item: any, idx: number) => {
+                    if (!acc[item.item_category]) acc[item.item_category] = [];
+                    acc[item.item_category].push({ ...item, idx });
+                    return acc;
+                  }, {})
+                ).map(([cat, items]: [string, any]) => (
+                  <div key={cat}>
+                    <h4 className="font-medium text-gray-700 text-sm capitalize mb-1">{CHECKLIST_CATEGORIES[cat] || cat}</h4>
                     <div className="space-y-1">
                       {items.map((item: any) => (
-                        <div key={item.id} className="flex items-center gap-2 text-sm p-1">
-                          <span className={`w-2 h-2 rounded-full ${item.status === 'ok' ? 'bg-success' : item.status === 'reemplazar' ? 'bg-danger' : 'bg-warning'}`} />
+                        <div key={item.idx} className="flex flex-col sm:flex-row gap-2 p-2 bg-white rounded text-sm">
                           <span className="flex-1">{item.item_name}</span>
-                          <span className="text-xs text-gray-500 capitalize">{item.status}</span>
-                          {item.notes && <span className="text-xs text-gray-400">({item.notes})</span>}
+                          <select value={newChecklist[item.idx]?.status || ''}
+                            onChange={e => {
+                              const updated = [...newChecklist];
+                              updated[item.idx] = { ...updated[item.idx], status: e.target.value };
+                              setNewChecklist(updated);
+                            }}
+                            className="input-field text-xs py-1 w-full sm:w-36">
+                            <option value="">Seleccionar</option>
+                            {CHECKLIST_STATUS_OPTIONS.map(s => <option key={s} value={s}>{s === 'na' ? 'No aplica' : s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                          </select>
+                          <input type="text" placeholder="Notas" value={newChecklist[item.idx]?.notes || ''}
+                            onChange={e => {
+                              const updated = [...newChecklist];
+                              updated[item.idx] = { ...updated[item.idx], notes: e.target.value };
+                              setNewChecklist(updated);
+                            }}
+                            className="input-field text-xs py-1 flex-1" />
                         </div>
                       ))}
                     </div>
                   </div>
                 ))}
+                <div className="flex gap-3 pt-2">
+                  <button onClick={() => setShowChecklistForm(false)} className="btn-outline flex-1 text-sm">Cancelar</button>
+                  <button onClick={saveNewChecklist} disabled={savingChecklist} className="btn-primary flex-1 text-sm flex items-center justify-center gap-1">
+                    {savingChecklist ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />} Guardar
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
