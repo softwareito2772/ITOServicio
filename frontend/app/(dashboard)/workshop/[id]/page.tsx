@@ -145,9 +145,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       const existing = (order.checklist || []).map((c: any) => c.item_name);
       const filtered = res.data.filter((t: any) => !existing.includes(t.item_name));
       setChecklistTemplate(filtered);
-      setNewChecklist(filtered.map((t: any) => ({
+      setNewChecklist(filtered.map((t: any, i: number) => ({
         item_name: t.item_name, item_category: t.item_category,
-        status: '', notes: '', needs_replacement: false,
+        status: '', notes: '', needs_replacement: false, idx: i,
       })));
       const cats: Record<string, boolean> = {};
       filtered.forEach((t: any) => { if (!cats[t.item_category]) cats[t.item_category] = false; });
@@ -157,8 +157,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   };
 
   const saveNewChecklist = async () => {
-    const itemsToSave = newChecklist.filter(i => i.status !== '' && i.status !== 'na');
-    if (itemsToSave.length === 0) { toast.error('Selecciona al menos un estado'); return; }
+    const activeCats = Object.entries(activeCategories).filter(([_, a]) => a).map(([c]) => c);
+    const itemsToSave = newChecklist.filter(i => i.status !== '' && i.status !== 'na' && activeCats.includes(i.item_category));
+    if (itemsToSave.length === 0) { toast.error('Selecciona al menos un ítem en una categoría activa'); return; }
     setSavingChecklist(true);
     try {
       await workshopAPI.addChecklistItems(order.id, itemsToSave);
