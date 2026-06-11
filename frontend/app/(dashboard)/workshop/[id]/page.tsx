@@ -609,9 +609,29 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                   <Save size={14} /> Guardar repuestos
                 </button>
               </div>
-            ) : (
+            ) : null}
+
+            {order.parts_used && order.parts_used.length > 0 ? (
+              <div className={partsList.length > 0 ? 'mt-3 pt-3 border-t' : ''}>
+                <p className="text-xs text-gray-400 mb-2">Repuestos guardados en la orden:</p>
+                <div className="space-y-1">
+                  {order.parts_used.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between p-2 bg-success/5 border border-success/20 rounded text-sm">
+                      <div className="flex items-center gap-2">
+                        <Package size={14} className="text-success" />
+                        <div>
+                          <span className="font-medium">{p.product?.name || p.custom_name || `Inventario #${p.workshop_inventory_id}`}</span>
+                          <span className="text-gray-400 ml-2">x{p.quantity}</span>
+                        </div>
+                      </div>
+                      <span className="font-medium">{formatCurrency(p.unit_price * p.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : partsList.length === 0 ? (
               <p className="text-sm text-gray-400">Sin repuestos. Agrega desde el inventario o "Otros".</p>
-            )}
+            ) : null}
           </div>
 
           <div className="card p-4 sm:p-6">
