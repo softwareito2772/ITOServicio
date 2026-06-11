@@ -8,52 +8,56 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 const VIEWS = [
-  { id: 'front', label: 'Frontal' },
-  { id: 'rear', label: 'Trasera' },
-  { id: 'left', label: 'Lateral Izq.' },
-  { id: 'right', label: 'Lateral Der.' },
+  { id: 'front', label: 'Frontal', icon: '⬆' },
+  { id: 'rear', label: 'Trasera', icon: '⬇' },
+  { id: 'left', label: 'Lateral Izq.', icon: '⬅' },
+  { id: 'right', label: 'Lateral Der.', icon: '➡' },
 ];
 
-const ZONES_BY_VIEW: Record<string, { id: string; label: string; cx: number; cy: number; path: string }[]> = {
+const ZONES: Record<string, { id: string; label: string; cx: number; cy: number; w: number; h: number }[]> = {
   front: [
-    { id: 'front_bumper', label: 'Defensa delantera', cx: 150, cy: 320, path: 'M80,280 Q80,260 100,255 L200,255 Q220,260 220,280 L220,330 Q220,345 200,350 L100,350 Q80,345 80,330 Z' },
-    { id: 'left_headlight', label: 'Faros izquierdos', cx: 95, cy: 240, path: 'M70,210 Q65,200 75,195 L115,195 Q125,200 125,210 L125,255 Q125,265 115,270 L75,270 Q65,265 65,255 Z' },
-    { id: 'right_headlight', label: 'Faros derechos', cx: 205, cy: 240, path: 'M175,210 Q175,200 185,195 L225,195 Q235,200 235,210 L235,255 Q235,265 225,270 L185,270 Q175,265 175,255 Z' },
-    { id: 'hood', label: 'Capó', cx: 150, cy: 170, path: 'M85,120 Q85,95 110,90 L190,90 Q215,95 215,120 L215,200 Q215,210 200,215 L100,215 Q85,210 85,200 Z' },
-    { id: 'windshield', label: 'Parabrisas', cx: 150, cy: 65, path: 'M95,15 Q95,5 115,0 L185,0 Q205,5 205,15 L205,90 Q205,100 190,105 L110,105 Q95,100 95,90 Z' },
-    { id: 'left_fender', label: 'Guardabrisas izq.', cx: 55, cy: 190, path: 'M40,130 Q38,120 45,115 L80,115 L80,270 L45,270 Q38,265 38,255 Z' },
-    { id: 'right_fender', label: 'Guardabrisas der.', cx: 245, cy: 190, path: 'M220,115 L255,115 Q262,120 262,130 L262,255 Q262,265 255,270 L220,270 Z' },
+    { id: 'front_bumper', label: 'Defensa delantera', cx: 200, cy: 340, w: 240, h: 40 },
+    { id: 'left_headlight', label: 'Faros izquierdos', cx: 95, cy: 250, w: 70, h: 30 },
+    { id: 'right_headlight', label: 'Faros derechos', cx: 305, cy: 250, w: 70, h: 30 },
+    { id: 'hood', label: 'Capó', cx: 200, cy: 185, w: 220, h: 80 },
+    { id: 'windshield', label: 'Parabrisas', cx: 200, cy: 85, w: 180, h: 60 },
+    { id: 'left_fender', label: 'Guardabarros izq.', cx: 50, cy: 200, w: 40, h: 120 },
+    { id: 'right_fender', label: 'Guardabarros der.', cx: 350, cy: 200, w: 40, h: 120 },
+    { id: 'grille', label: 'Parrilla/Radiador', cx: 200, cy: 290, w: 120, h: 30 },
   ],
   rear: [
-    { id: 'rear_bumper', label: 'Defensa trasera', cx: 150, cy: 320, path: 'M80,280 Q80,260 100,255 L200,255 Q220,260 220,280 L220,330 Q220,345 200,350 L100,350 Q80,345 80,330 Z' },
-    { id: 'left_taillight', label: 'Luces tras. izq.', cx: 90, cy: 235, path: 'M65,210 Q60,200 70,195 L110,195 Q120,200 120,210 L120,260 Q120,270 110,275 L70,275 Q60,270 60,260 Z' },
-    { id: 'right_taillight', label: 'Luces tras. der.', cx: 210, cy: 235, path: 'M180,210 Q180,200 190,195 L230,195 Q240,200 240,210 L240,260 Q240,270 230,275 L190,275 Q180,270 180,260 Z' },
-    { id: 'trunk', label: 'Maletero', cx: 150, cy: 150, path: 'M85,90 Q85,70 110,65 L190,65 Q215,70 215,90 L215,195 Q215,205 200,210 L100,210 Q85,205 85,195 Z' },
-    { id: 'rear_window', label: 'Vidrio trasero', cx: 150, cy: 55, path: 'M100,10 Q100,0 120,0 L180,0 Q200,0 200,10 L200,75 Q200,85 185,88 L115,88 Q100,85 100,75 Z' },
-    { id: 'left_rear_fender', label: 'Guarda tras. izq.', cx: 55, cy: 190, path: 'M40,130 Q38,120 45,115 L80,115 L80,270 L45,270 Q38,265 38,255 Z' },
-    { id: 'right_rear_fender', label: 'Guarda tras. der.', cx: 245, cy: 190, path: 'M220,115 L255,115 Q262,120 262,130 L262,255 Q262,265 255,270 L220,270 Z' },
+    { id: 'rear_bumper', label: 'Defensa trasera', cx: 200, cy: 340, w: 240, h: 40 },
+    { id: 'left_taillight', label: 'Luz tras. izq.', cx: 90, cy: 240, w: 60, h: 35 },
+    { id: 'right_taillight', label: 'Luz tras. der.', cx: 310, cy: 240, w: 60, h: 35 },
+    { id: 'trunk', label: 'Maletero', cx: 200, cy: 170, w: 220, h: 80 },
+    { id: 'rear_window', label: 'Vidrio trasero', cx: 200, cy: 80, w: 170, h: 55 },
+    { id: 'left_rear_fender', label: 'Guarda tras. izq.', cx: 50, cy: 200, w: 40, h: 120 },
+    { id: 'right_rear_fender', label: 'Guarda tras. der.', cx: 350, cy: 200, w: 40, h: 120 },
+    { id: 'license_plate_rear', label: 'Placa trasera', cx: 200, cy: 305, w: 80, h: 25 },
   ],
   left: [
-    { id: 'left_front_bumper_side', label: 'Defensa del. izq.', cx: 40, cy: 260, path: 'M15,230 Q10,220 15,210 L50,200 Q60,195 65,200 L65,300 Q60,310 50,305 L15,295 Q10,285 15,275 Z' },
-    { id: 'left_front_fender_side', label: 'Guardabarros del.', cx: 85, cy: 200, path: 'M65,140 L65,290 L120,290 Q130,285 130,275 L130,155 Q130,145 120,140 Z' },
-    { id: 'left_front_door', label: 'Puerta delantera', cx: 165, cy: 210, path: 'M130,130 L130,290 L200,290 L200,130 Z' },
-    { id: 'left_rear_door', label: 'Puerta trasera', cx: 250, cy: 210, path: 'M200,130 L200,290 L270,290 L270,130 Z' },
-    { id: 'left_rear_fender_side', label: 'Guardabarros tras.', cx: 310, cy: 200, path: 'M270,140 L270,290 L325,290 Q335,285 335,275 L335,155 Q335,145 325,140 Z' },
-    { id: 'left_rear_bumper_side', label: 'Defensa tras. izq.', cx: 355, cy: 260, path: 'M335,230 Q340,220 335,210 L300,200 Q290,195 285,200 L285,300 Q290,310 300,305 L335,295 Q340,285 335,275 Z' },
-    { id: 'left_front_tire_side', label: 'Llanta delantera', cx: 85, cy: 310, path: 'M60,295 Q55,290 58,280 L58,280 Q55,270 60,265 L110,265 Q115,270 112,280 L112,280 Q115,290 110,295 Z' },
-    { id: 'left_rear_tire_side', label: 'Llanta trasera', cx: 310, cy: 310, path: 'M285,295 Q280,290 283,280 L283,280 Q280,270 285,265 L335,265 Q340,270 337,280 L337,280 Q340,290 335,295 Z' },
-    { id: 'left_mirror_side', label: 'Espejo izquierdo', cx: 120, cy: 140, path: 'M110,120 Q105,115 108,108 L135,108 Q138,115 133,120 L133,145 Q138,150 135,155 L108,155 Q105,150 110,145 Z' },
+    { id: 'left_front_bumper_side', label: 'Defensa del. izq.', cx: 38, cy: 255, w: 36, h: 70 },
+    { id: 'left_front_fender_side', label: 'Guardabarros del.', cx: 88, cy: 200, w: 50, h: 130 },
+    { id: 'left_front_door', label: 'Puerta delantera', cx: 168, cy: 200, w: 80, h: 130 },
+    { id: 'left_rear_door', label: 'Puerta trasera', cx: 252, cy: 200, w: 80, h: 130 },
+    { id: 'left_rear_fender_side', label: 'Guardabarros tras.', cx: 318, cy: 200, w: 50, h: 130 },
+    { id: 'left_rear_bumper_side', label: 'Defensa tras. izq.', cx: 362, cy: 255, w: 36, h: 70 },
+    { id: 'left_front_tire', label: 'Llanta delantera', cx: 75, cy: 310, w: 44, h: 44 },
+    { id: 'left_rear_tire', label: 'Llanta trasera', cx: 318, cy: 310, w: 44, h: 44 },
+    { id: 'left_mirror', label: 'Espejo retrovisor', cx: 128, cy: 135, w: 28, h: 22 },
+    { id: 'left_roof', label: 'Techo', cx: 200, cy: 100, w: 160, h: 30 },
   ],
   right: [
-    { id: 'right_front_bumper_side', label: 'Defensa del. der.', cx: 360, cy: 260, path: 'M385,230 Q390,220 385,210 L350,200 Q340,195 335,200 L335,300 Q340,310 350,305 L385,295 Q390,285 385,275 Z' },
-    { id: 'right_front_fender_side', label: 'Guardabarros del.', cx: 315, cy: 200, path: 'M335,140 L335,290 L280,290 Q270,285 270,275 L270,155 Q270,145 280,140 Z' },
-    { id: 'right_front_door', label: 'Puerta delantera', cx: 235, cy: 210, path: 'M270,130 L270,290 L200,290 L200,130 Z' },
-    { id: 'right_rear_door', label: 'Puerta trasera', cx: 150, cy: 210, path: 'M200,130 L200,290 L130,290 L130,130 Z' },
-    { id: 'right_rear_fender_side', label: 'Guardabarros tras.', cx: 90, cy: 200, path: 'M130,140 L130,290 L75,290 Q65,285 65,275 L65,155 Q65,145 75,140 Z' },
-    { id: 'right_rear_bumper_side', label: 'Defensa tras. der.', cx: 45, cy: 260, path: 'M65,230 Q60,220 65,210 L100,200 Q110,195 115,200 L115,300 Q110,310 100,305 L65,295 Q60,285 65,275 Z' },
-    { id: 'right_front_tire_side', label: 'Llanta delantera', cx: 315, cy: 310, path: 'M290,295 Q285,290 288,280 L288,280 Q285,270 290,265 L340,265 Q345,270 342,280 L342,280 Q345,290 340,295 Z' },
-    { id: 'right_rear_tire_side', label: 'Llanta trasera', cx: 90, cy: 310, path: 'M65,295 Q60,290 63,280 L63,280 Q60,270 65,265 L115,265 Q120,270 117,280 L117,280 Q120,290 115,295 Z' },
-    { id: 'right_mirror_side', label: 'Espejo derecho', cx: 280, cy: 140, path: 'M290,120 Q295,115 292,108 L265,108 Q262,115 267,120 L267,145 Q262,150 265,155 L292,155 Q295,150 290,145 Z' },
+    { id: 'right_front_bumper_side', label: 'Defensa del. der.', cx: 362, cy: 255, w: 36, h: 70 },
+    { id: 'right_front_fender_side', label: 'Guardabarros del.', cx: 312, cy: 200, w: 50, h: 130 },
+    { id: 'right_front_door', label: 'Puerta delantera', cx: 232, cy: 200, w: 80, h: 130 },
+    { id: 'right_rear_door', label: 'Puerta trasera', cx: 148, cy: 200, w: 80, h: 130 },
+    { id: 'right_rear_fender_side', label: 'Guardabarros tras.', cx: 82, cy: 200, w: 50, h: 130 },
+    { id: 'right_rear_bumper_side', label: 'Defensa tras. der.', cx: 38, cy: 255, w: 36, h: 70 },
+    { id: 'right_front_tire', label: 'Llanta delantera', cx: 325, cy: 310, w: 44, h: 44 },
+    { id: 'right_rear_tire', label: 'Llanta trasera', cx: 82, cy: 310, w: 44, h: 44 },
+    { id: 'right_mirror', label: 'Espejo retrovisor', cx: 272, cy: 135, w: 28, h: 22 },
+    { id: 'right_roof', label: 'Techo', cx: 200, cy: 100, w: 160, h: 30 },
   ],
 };
 
@@ -72,6 +76,356 @@ const SEVERITY_OPTIONS = [
   { value: 'moderado', label: 'Moderado', color: 'bg-orange-100 text-orange-700' },
   { value: 'severo', label: 'Severo', color: 'bg-danger/20 text-danger' },
 ];
+
+function FrontView() {
+  return (
+    <svg viewBox="0 0 400 380" className="w-full" style={{ maxHeight: '500px' }}>
+      <defs>
+        <linearGradient id="fBody" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#f3f4f6" />
+          <stop offset="30%" stopColor="#e5e7eb" />
+          <stop offset="70%" stopColor="#d1d5db" />
+          <stop offset="100%" stopColor="#b0b5bd" />
+        </linearGradient>
+        <linearGradient id="fDark" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#4b5563" />
+          <stop offset="100%" stopColor="#374151" />
+        </linearGradient>
+        <linearGradient id="fGlass" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#dbeafe" />
+          <stop offset="40%" stopColor="#bfdbfe" />
+          <stop offset="100%" stopColor="#93c5fd" />
+        </linearGradient>
+        <linearGradient id="fChrome" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#f9fafb" />
+          <stop offset="50%" stopColor="#d1d5db" />
+          <stop offset="100%" stopColor="#9ca3af" />
+        </linearGradient>
+        <linearGradient id="fHeadlight" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="40%" stopColor="#fef3c7" />
+          <stop offset="100%" stopColor="#fde68a" />
+        </linearGradient>
+        <linearGradient id="fBumper" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#6b7280" />
+          <stop offset="100%" stopColor="#4b5563" />
+        </linearGradient>
+        <filter id="fShadow" x="-10%" y="-5%" width="120%" height="115%">
+          <feDropShadow dx="0" dy="4" stdDeviation="6" floodOpacity="0.2" />
+        </filter>
+        <radialGradient id="fTireShine" cx="50%" cy="40%">
+          <stop offset="0%" stopColor="#4b5563" />
+          <stop offset="100%" stopColor="#1f2937" />
+        </radialGradient>
+      </defs>
+
+      <g filter="url(#fShadow)">
+        {/* Ground shadow */}
+        <ellipse cx="200" cy="365" rx="170" ry="12" fill="#e5e7eb" opacity="0.5" />
+
+        {/* Tires visible from front */}
+        <ellipse cx="72" cy="330" rx="22" ry="28" fill="url(#fTireShine)" stroke="#111827" strokeWidth="1" />
+        <ellipse cx="72" cy="330" rx="14" ry="18" fill="#374151" />
+        <ellipse cx="72" cy="330" rx="6" ry="8" fill="#6b7280" />
+        <ellipse cx="328" cy="330" rx="22" ry="28" fill="url(#fTireShine)" stroke="#111827" strokeWidth="1" />
+        <ellipse cx="328" cy="330" rx="14" ry="18" fill="#374151" />
+        <ellipse cx="328" cy="330" rx="6" ry="8" fill="#6b7280" />
+
+        {/* Lower bumper / air dam */}
+        <path d="M60,330 Q60,310 80,305 L320,305 Q340,310 340,330 L340,350 Q340,360 325,365 L75,365 Q60,360 60,350 Z" fill="url(#fBumper)" stroke="#374151" strokeWidth="0.5" />
+
+        {/* Grille */}
+        <rect x="120" y="275" width="160" height="28" rx="4" fill="#1f2937" stroke="#374151" strokeWidth="0.5" />
+        {/* Grille horizontal bars */}
+        {[0,1,2,3,4].map(i => (
+          <rect key={i} x="125" y={278 + i * 5} width="150" height="2" rx="1" fill="#4b5563" />
+        ))}
+        {/* Chrome trim on grille */}
+        <rect x="118" y="273" width="164" height="2" rx="1" fill="url(#fChrome)" />
+        <rect x="118" y="303" width="164" height="2" rx="1" fill="url(#fChrome)" />
+
+        {/* Toyota emblem */}
+        <ellipse cx="200" cy="270" rx="16" ry="12" fill="url(#fChrome)" stroke="#9ca3af" strokeWidth="0.5" />
+        <ellipse cx="200" cy="270" rx="12" ry="8" fill="none" stroke="#6b7280" strokeWidth="1.5" />
+        <ellipse cx="200" cy="270" rx="5" ry="3.5" fill="none" stroke="#6b7280" strokeWidth="1" />
+
+        {/* Upper body */}
+        <path d="M65,305 Q65,260 85,245 L315,245 Q335,260 335,305 Z" fill="url(#fBody)" stroke="#9ca3af" strokeWidth="0.8" />
+
+        {/* Hood */}
+        <path d="M75,245 Q75,180 100,165 L300,165 Q325,180 325,245 Z" fill="url(#fBody)" stroke="#9ca3af" strokeWidth="0.8" />
+        {/* Hood lines */}
+        <path d="M200,168 L200,242" stroke="#c8ccd2" strokeWidth="0.5" />
+        <path d="M130,175 Q130,200 135,242" stroke="#c8ccd2" strokeWidth="0.3" fill="none" />
+        <path d="M270,175 Q270,200 265,242" stroke="#c8ccd2" strokeWidth="0.3" fill="none" />
+
+        {/* Headlights */}
+        <path d="M68,215 Q62,200 70,188 L118,188 Q128,200 125,215 L125,245 Q125,250 118,252 L70,252 Q62,250 62,245 Z" fill="url(#fHeadlight)" stroke="#d1d5db" strokeWidth="0.8" />
+        <path d="M72,210 Q68,200 75,193 L113,193 Q120,200 118,210" fill="none" stroke="#fbbf24" strokeWidth="0.5" opacity="0.6" />
+        <ellipse cx="90" cy="215" rx="8" ry="6" fill="#fef9c3" opacity="0.4" />
+
+        <path d="M275,215 Q272,200 280,188 L328,188 Q338,200 335,215 L335,245 Q335,250 328,252 L280,252 Q272,250 272,245 Z" fill="url(#fHeadlight)" stroke="#d1d5db" strokeWidth="0.8" />
+        <path d="M282,210 Q278,200 285,193 L325,193 Q332,200 330,210" fill="none" stroke="#fbbf24" strokeWidth="0.5" opacity="0.6" />
+        <ellipse cx="310" cy="215" rx="8" ry="6" fill="#fef9c3" opacity="0.4" />
+
+        {/* Turn signals */}
+        <rect x="65" y="232" width="8" height="12" rx="2" fill="#fbbf24" opacity="0.7" />
+        <rect x="327" y="232" width="8" height="12" rx="2" fill="#fbbf24" opacity="0.7" />
+
+        {/* Fenders */}
+        <path d="M42,170 Q38,165 40,158 L68,158 L68,260 L40,260 Q38,255 42,248 Z" fill="url(#fBody)" stroke="#9ca3af" strokeWidth="0.6" />
+        <path d="M332,158 L360,158 Q362,165 358,170 L358,248 Q362,255 360,260 L332,260 Z" fill="url(#fBody)" stroke="#9ca3af" strokeWidth="0.6" />
+
+        {/* Windshield */}
+        <path d="M95,155 Q95,100 115,90 L285,90 Q305,100 305,155 Z" fill="url(#fGlass)" stroke="#93c5fd" strokeWidth="0.8" />
+        {/* Windshield reflection */}
+        <path d="M120,100 Q150,95 200,93 L180,140 Q140,142 120,135 Z" fill="white" opacity="0.15" />
+        {/* Wipers */}
+        <line x1="160" y1="152" x2="200" y2="155" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="240" y1="155" x2="200" y2="152" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" />
+
+        {/* Roof visible */}
+        <path d="M110,90 Q110,65 130,58 L270,58 Q290,65 290,90 Z" fill="url(#fBody)" stroke="#9ca3af" strokeWidth="0.5" />
+
+        {/* Side mirrors */}
+        <path d="M40,165 Q30,160 28,150 L28,138 Q30,130 40,135 L55,145 Q58,150 55,158 Z" fill="url(#fBody)" stroke="#9ca3af" strokeWidth="0.5" />
+        <rect x="30" y="138" width="10" height="10" rx="1" fill="url(#fGlass)" stroke="#93c5fd" strokeWidth="0.3" />
+        <path d="M360,135 Q370,130 372,138 L372,150 Q370,160 360,165 L345,158 Q342,150 345,145 Z" fill="url(#fBody)" stroke="#9ca3af" strokeWidth="0.5" />
+        <rect x="360" y="138" width="10" height="10" rx="1" fill="url(#fGlass)" stroke="#93c5fd" strokeWidth="0.3" />
+
+        {/* A-pillars */}
+        <path d="M95,155 L110,90" stroke="#b0b5bd" strokeWidth="3" />
+        <path d="M305,155 L290,90" stroke="#b0b5bd" strokeWidth="3" />
+
+        {/* Plate */}
+        <rect x="160" y="315" width="80" height="22" rx="2" fill="white" stroke="#d1d5db" strokeWidth="0.5" />
+        <text x="200" y="330" textAnchor="middle" fontSize="8" fill="#374151" fontFamily="monospace">ABC 123</text>
+      </g>
+    </svg>
+  );
+}
+
+function RearView() {
+  return (
+    <svg viewBox="0 0 400 380" className="w-full" style={{ maxHeight: '500px' }}>
+      <defs>
+        <linearGradient id="rBody" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#f3f4f6" />
+          <stop offset="30%" stopColor="#e5e7eb" />
+          <stop offset="70%" stopColor="#d1d5db" />
+          <stop offset="100%" stopColor="#b0b5bd" />
+        </linearGradient>
+        <linearGradient id="rGlass" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#dbeafe" />
+          <stop offset="100%" stopColor="#93c5fd" />
+        </linearGradient>
+        <linearGradient id="rChrome" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#f9fafb" />
+          <stop offset="50%" stopColor="#d1d5db" />
+          <stop offset="100%" stopColor="#9ca3af" />
+        </linearGradient>
+        <linearGradient id="rTaillight" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#dc2626" />
+          <stop offset="50%" stopColor="#ef4444" />
+          <stop offset="100%" stopColor="#b91c1c" />
+        </linearGradient>
+        <filter id="rShadow" x="-10%" y="-5%" width="120%" height="115%">
+          <feDropShadow dx="0" dy="4" stdDeviation="6" floodOpacity="0.2" />
+        </filter>
+      </defs>
+
+      <g filter="url(#rShadow)">
+        <ellipse cx="200" cy="365" rx="170" ry="12" fill="#e5e7eb" opacity="0.5" />
+
+        <ellipse cx="72" cy="330" rx="22" ry="28" fill="#1f2937" stroke="#111827" strokeWidth="1" />
+        <ellipse cx="72" cy="330" rx="14" ry="18" fill="#374151" />
+        <ellipse cx="72" cy="330" rx="6" ry="8" fill="#6b7280" />
+        <ellipse cx="328" cy="330" rx="22" ry="28" fill="#1f2937" stroke="#111827" strokeWidth="1" />
+        <ellipse cx="328" cy="330" rx="14" ry="18" fill="#374151" />
+        <ellipse cx="328" cy="330" rx="6" ry="8" fill="#6b7280" />
+
+        {/* Lower bumper */}
+        <path d="M60,330 Q60,315 78,310 L322,310 Q340,315 340,330 L340,350 Q340,360 325,365 L75,365 Q60,360 60,350 Z" fill="#4b5563" stroke="#374151" strokeWidth="0.5" />
+        {/* Exhaust tips */}
+        <ellipse cx="120" cy="350" rx="10" ry="5" fill="#374151" stroke="#6b7280" strokeWidth="0.5" />
+        <ellipse cx="120" cy="350" rx="7" ry="3" fill="#1f2937" />
+        <ellipse cx="280" cy="350" rx="10" ry="5" fill="#374151" stroke="#6b7280" strokeWidth="0.5" />
+        <ellipse cx="280" cy="350" rx="7" ry="3" fill="#1f2937" />
+
+        {/* Reflectors */}
+        <rect x="68" y="318" width="20" height="6" rx="2" fill="#ef4444" opacity="0.6" />
+        <rect x="312" y="318" width="20" height="6" rx="2" fill="#ef4444" opacity="0.6" />
+
+        {/* Upper bumper */}
+        <path d="M65,310 Q65,265 85,250 L315,250 Q335,265 335,310 Z" fill="url(#rBody)" stroke="#9ca3af" strokeWidth="0.8" />
+
+        {/* Trunk */}
+        <path d="M75,250 Q75,175 100,160 L300,160 Q325,175 325,250 Z" fill="url(#rBody)" stroke="#9ca3af" strokeWidth="0.8" />
+        {/* Trunk lines */}
+        <path d="M200,163 L200,247" stroke="#c8ccd2" strokeWidth="0.5" />
+
+        {/* Taillights */}
+        <path d="M68,215 Q62,200 70,190 L115,190 Q125,200 122,215 L122,245 Q122,250 115,252 L70,252 Q62,250 62,245 Z" fill="url(#rTaillight)" stroke="#991b1b" strokeWidth="0.8" />
+        <path d="M72,210 Q68,200 75,195 L110,195 Q117,200 115,210" fill="none" stroke="#fca5a5" strokeWidth="1" />
+        <rect x="73" y="220" width="38" height="15" rx="3" fill="#fef2f2" opacity="0.5" />
+
+        <path d="M278,215 Q275,200 283,190 L328,190 Q338,200 335,215 L335,245 Q335,250 328,252 L283,252 Q275,250 275,245 Z" fill="url(#rTaillight)" stroke="#991b1b" strokeWidth="0.8" />
+        <path d="M285,210 Q280,200 288,195 L325,195 Q332,200 330,210" fill="none" stroke="#fca5a5" strokeWidth="1" />
+        <rect x="288" y="220" width="38" height="15" rx="3" fill="#fef2f2" opacity="0.5" />
+
+        {/* Chrome trunk trim */}
+        <rect x="140" y="248" width="120" height="3" rx="1" fill="url(#rChrome)" />
+
+        {/* Toyota emblem rear */}
+        <ellipse cx="200" cy="240" rx="14" ry="10" fill="url(#rChrome)" stroke="#9ca3af" strokeWidth="0.5" />
+        <ellipse cx="200" cy="240" rx="10" ry="7" fill="none" stroke="#6b7280" strokeWidth="1.2" />
+
+        {/* Rear window */}
+        <path d="M100,155 Q100,100 120,90 L280,90 Q300,100 300,155 Z" fill="url(#rGlass)" stroke="#93c5fd" strokeWidth="0.8" />
+        <path d="M130,100 Q160,95 200,93 L180,140 Q140,142 120,135 Z" fill="white" opacity="0.12" />
+        {/* Rear defroster lines */}
+        {[0,1,2,3,4,5].map(i => (
+          <line key={i} x1={120 + i * 25} y1="100" x2={120 + i * 25} y2="148" stroke="#93c5fd" strokeWidth="0.3" opacity="0.5" />
+        ))}
+
+        {/* Roof */}
+        <path d="M115,90 Q115,65 135,58 L265,58 Q285,65 285,90 Z" fill="url(#rBody)" stroke="#9ca3af" strokeWidth="0.5" />
+
+        {/* Fenders */}
+        <path d="M42,165 Q38,160 40,155 L68,155 L68,260 L40,260 Q38,255 42,248 Z" fill="url(#rBody)" stroke="#9ca3af" strokeWidth="0.6" />
+        <path d="M332,155 L360,155 Q362,160 358,165 L358,248 Q362,255 360,260 L332,260 Z" fill="url(#rBody)" stroke="#9ca3af" strokeWidth="0.6" />
+
+        {/* Plate */}
+        <rect x="155" y="270" width="90" height="28" rx="2" fill="white" stroke="#d1d5db" strokeWidth="0.5" />
+        <text x="200" y="288" textAnchor="middle" fontSize="9" fill="#374151" fontFamily="monospace">ABC 123</text>
+
+        {/* A-pillars */}
+        <path d="M100,155 L115,90" stroke="#b0b5bd" strokeWidth="3" />
+        <path d="M300,155 L285,90" stroke="#b0b5bd" strokeWidth="3" />
+      </g>
+    </svg>
+  );
+}
+
+function SideView({ flip }: { flip: boolean }) {
+  const tx = flip ? 'scale(-1,1) translate(-400,0)' : '';
+  return (
+    <svg viewBox="0 0 400 380" className="w-full" style={{ maxHeight: '500px' }}>
+      <defs>
+        <linearGradient id="sBody" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#f3f4f6" />
+          <stop offset="40%" stopColor="#e5e7eb" />
+          <stop offset="100%" stopColor="#c8ccd2" />
+        </linearGradient>
+        <linearGradient id="sGlass" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#dbeafe" />
+          <stop offset="100%" stopColor="#93c5fd" />
+        </linearGradient>
+        <linearGradient id="sTire" cx="50%" cy="40%">
+          <stop offset="0%" stopColor="#4b5563" />
+          <stop offset="100%" stopColor="#1f2937" />
+        </linearGradient>
+        <linearGradient id="sRim" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#e5e7eb" />
+          <stop offset="50%" stopColor="#9ca3af" />
+          <stop offset="100%" stopColor="#6b7280" />
+        </linearGradient>
+        <filter id="sShadow" x="-5%" y="-5%" width="110%" height="115%">
+          <feDropShadow dx="0" dy="4" stdDeviation="5" floodOpacity="0.2" />
+        </filter>
+      </defs>
+
+      <g transform={tx} filter="url(#sShadow)">
+        <ellipse cx="200" cy="365" rx="180" ry="10" fill="#e5e7eb" opacity="0.4" />
+
+        {/* Tires */}
+        <circle cx="85" cy="318" r="28" fill="#1f2937" stroke="#111827" strokeWidth="1" />
+        <circle cx="85" cy="318" r="18" fill="#374151" />
+        <circle cx="85" cy="318" r="12" fill="url(#sRim)" stroke="#9ca3af" strokeWidth="0.5" />
+        <circle cx="85" cy="318" r="5" fill="#6b7280" />
+        {[0,1,2,3,4].map(i => (
+          <line key={i} x1="85" y1="318" x2={85 + 12 * Math.cos(i * Math.PI * 2 / 5)} y2={318 + 12 * Math.sin(i * Math.PI * 2 / 5)} stroke="#9ca3af" strokeWidth="1" />
+        ))}
+
+        <circle cx="315" cy="318" r="28" fill="#1f2937" stroke="#111827" strokeWidth="1" />
+        <circle cx="315" cy="318" r="18" fill="#374151" />
+        <circle cx="315" cy="318" r="12" fill="url(#sRim)" stroke="#9ca3af" strokeWidth="0.5" />
+        <circle cx="315" cy="318" r="5" fill="#6b7280" />
+        {[0,1,2,3,4].map(i => (
+          <line key={i} x1="315" y1="318" x2={315 + 12 * Math.cos(i * Math.PI * 2 / 5)} y2={318 + 12 * Math.sin(i * Math.PI * 2 / 5)} stroke="#9ca3af" strokeWidth="1" />
+        ))}
+
+        {/* Main body */}
+        <path d="M30,265 Q28,255 35,248 L35,210 Q38,195 50,190 L60,190 L60,170 Q62,162 72,158 L328,158 Q338,162 340,170 L340,190 L350,190 Q362,195 365,210 L365,248 Q372,255 370,265 L370,305 Q370,312 360,315 L40,315 Q30,312 30,305 Z" fill="url(#sBody)" stroke="#9ca3af" strokeWidth="0.8" />
+
+        {/* Belt line / character line */}
+        <path d="M38,205 L362,205" stroke="#b8bcc4" strokeWidth="0.8" />
+
+        {/* Door gaps */}
+        <line x1="148" y1="160" x2="148" y2="308" stroke="#b8bcc4" strokeWidth="0.8" />
+        <line x1="248" y1="160" x2="248" y2="308" stroke="#b8bcc4" strokeWidth="0.8" />
+
+        {/* Door handles */}
+        <rect x="162" y="215" width="22" height="6" rx="3" fill="url(#sBody)" stroke="#9ca3af" strokeWidth="0.5" />
+        <rect x="262" y="215" width="22" height="6" rx="3" fill="url(#sBody)" stroke="#9ca3af" strokeWidth="0.5" />
+
+        {/* Windows */}
+        <path d="M72,158 L145,158 L145,195 L65,195 Q62,190 65,182 Z" fill="url(#sGlass)" stroke="#93c5fd" strokeWidth="0.5" rx="3" />
+        <path d="M151,158 L245,158 L245,195 L151,195 Z" fill="url(#sGlass)" stroke="#93c5fd" strokeWidth="0.5" />
+        <path d="M251,158 L325,158 Q335,162 335,170 L335,195 L251,195 Z" fill="url(#sGlass)" stroke="#93c5fd" strokeWidth="0.5" rx="3" />
+        {/* Window reflections */}
+        <path d="M80,162 L120,162 L110,188 L72,188 Z" fill="white" opacity="0.1" />
+        <path d="M160,162 L200,162 L195,188 L155,188 Z" fill="white" opacity="0.08" />
+
+        {/* B-pillars */}
+        <rect x="146" y="158" width="4" height="37" fill="#374151" />
+        <rect x="246" y="158" width="4" height="37" fill="#374151" />
+
+        {/* Roof */}
+        <path d="M72,158 Q72,130 95,122 L305,122 Q328,130 328,158 Z" fill="url(#sBody)" stroke="#9ca3af" strokeWidth="0.5" />
+
+        {/* A-pillar */}
+        <path d="M65,195 L72,158" stroke="#b0b5bd" strokeWidth="4" />
+        {/* C-pillar */}
+        <path d="M335,195 L328,158" stroke="#b0b5bd" strokeWidth="4" />
+
+        {/* Front headlight from side */}
+        <path d="M35,195 Q32,188 38,182 L58,178 Q62,180 60,188 L60,205 Q58,210 52,212 L38,210 Q34,208 35,202 Z" fill="#fef3c7" stroke="#f59e0b" strokeWidth="0.5" />
+
+        {/* Rear taillight from side */}
+        <path d="M365,195 Q368,188 362,182 L342,178 Q338,180 340,188 L340,205 Q342,210 348,212 L362,210 Q366,208 365,202 Z" fill="#ef4444" stroke="#dc2626" strokeWidth="0.5" />
+
+        {/* Fender flares */}
+        <path d="M50,268 Q45,260 48,252 L70,252 Q72,260 68,268" fill="none" stroke="#b8bcc4" strokeWidth="0.5" />
+        <path d="M332,268 Q338,260 335,252 L315,252 Q312,260 318,268" fill="none" stroke="#b8bcc4" strokeWidth="0.5" />
+
+        {/* Side skirt */}
+        <path d="M80,308 L310,308" stroke="#b8bcc4" strokeWidth="0.5" />
+
+        {/* Mirror */}
+        <path d="M58,175 Q52,172 50,165 L50,158 Q52,152 58,155 L68,162 Q70,168 68,175 Z" fill="url(#sBody)" stroke="#9ca3af" strokeWidth="0.5" />
+        <rect x="52" y="158" width="8" height="8" rx="1" fill="url(#sGlass)" stroke="#93c5fd" strokeWidth="0.3" />
+
+        {/* Front bumper from side */}
+        <path d="M30,265 Q25,258 28,248 L35,248 L35,265 Z" fill="#4b5563" stroke="#374151" strokeWidth="0.3" />
+
+        {/* Rear bumper from side */}
+        <path d="M370,265 Q375,258 372,248 L365,248 L365,265 Z" fill="#4b5563" stroke="#374151" strokeWidth="0.3" />
+
+        {/* Wheel arches */}
+        <path d="M50,295 Q50,280 65,275 L105,275 Q120,280 120,295" fill="none" stroke="#b8bcc4" strokeWidth="0.5" />
+        <path d="M280,295 Q280,280 295,275 L335,275 Q350,280 350,295" fill="none" stroke="#b8bcc4" strokeWidth="0.5" />
+      </g>
+    </svg>
+  );
+}
+
+const VIEW_COMPONENTS: Record<string, () => JSX.Element> = {
+  front: FrontView,
+  rear: RearView,
+  left: () => <SideView flip={false} />,
+  right: () => <SideView flip={true} />,
+};
 
 function InspectionContent() {
   const searchParams = useSearchParams();
@@ -100,7 +454,7 @@ function InspectionContent() {
   };
 
   const getZoneLabel = (zoneId: string) => {
-    for (const view of Object.values(ZONES_BY_VIEW)) {
+    for (const view of Object.values(ZONES)) {
       const z = view.find(v => v.id === zoneId);
       if (z) return z.label;
     }
@@ -150,8 +504,9 @@ function InspectionContent() {
     } catch { toast.error('Error al eliminar'); }
   };
 
-  const currentZones = ZONES_BY_VIEW[activeView] || [];
+  const currentZones = ZONES[activeView] || [];
   const viewInspections = inspections.filter(i => currentZones.some(z => z.id === i.zone));
+  const ViewComponent = VIEW_COMPONENTS[activeView];
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={32} /></div>;
   if (!order) return <div className="text-center py-12"><p className="text-gray-500">Orden no encontrada</p></div>;
@@ -169,8 +524,8 @@ function InspectionContent() {
       <div className="flex flex-wrap gap-2">
         {VIEWS.map(v => (
           <button key={v.id} onClick={() => { setActiveView(v.id); setShowForm(false); setSelectedZone(null); }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${activeView === v.id ? 'bg-primary text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/50'}`}>
-            {v.label}
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center gap-2 ${activeView === v.id ? 'bg-primary text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/50'}`}>
+            <span>{v.icon}</span> {v.label}
           </button>
         ))}
       </div>
@@ -178,144 +533,43 @@ function InspectionContent() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <div className="card p-4 sm:p-6">
-            <div className="relative bg-gray-50 rounded-lg p-4 flex justify-center">
-              <svg viewBox="0 0 400 370" className="w-full max-w-lg" style={{ height: 'auto' }}>
-                <defs>
-                  <linearGradient id="carBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#e5e7eb" />
-                    <stop offset="100%" stopColor="#d1d5db" />
-                  </linearGradient>
-                  <linearGradient id="glassGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#bfdbfe" />
-                    <stop offset="100%" stopColor="#93c5fd" />
-                  </linearGradient>
-                  <filter id="carShadow" x="-5%" y="-5%" width="110%" height="110%">
-                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.15" />
-                  </filter>
-                </defs>
-
-                {activeView === 'front' && (
-                  <g filter="url(#carShadow)">
-                    <path d="M70,340 L70,300 Q70,280 90,275 L210,275 Q230,280 230,300 L230,340 Q230,355 215,360 L85,360 Q70,355 70,340 Z" fill="#374151" stroke="#1f2937" strokeWidth="1" />
-                    <rect x="75" y="305" width="150" height="30" rx="3" fill="#ef4444" opacity="0.8" />
-                    <rect x="75" y="308" width="150" height="10" rx="2" fill="#fca5a5" />
-                    <path d="M80,270 Q80,240 100,235 L200,235 Q220,240 220,270 L220,295 Q220,305 210,308 L90,308 Q80,305 80,295 Z" fill="#4b5563" stroke="#374151" strokeWidth="0.5" />
-                    <path d="M90,200 Q90,170 110,165 L190,165 Q210,170 210,200 L210,240 Q210,248 200,250 L100,250 Q90,248 90,240 Z" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="1" />
-                    <path d="M100,180 Q100,170 115,168 L185,168 Q200,170 200,180 L200,210 Q200,215 190,218 L110,218 Q100,215 100,210 Z" fill="#374151" stroke="#1f2937" strokeWidth="0.3" rx="3" />
-                    <path d="M95,130 Q95,100 115,95 L185,95 Q205,100 205,130 L205,175 Q205,185 195,188 L105,188 Q95,185 95,175 Z" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="1" />
-                    <path d="M105,105 Q105,98 118,95 L182,95 Q195,98 195,105 L195,135 Q195,142 185,145 L115,145 Q105,142 105,135 Z" fill="url(#glassGrad)" stroke="#60a5fa" strokeWidth="0.5" rx="5" />
-                    <line x1="150" y1="95" x2="150" y2="145" stroke="#9ca3af" strokeWidth="0.5" />
-                    <path d="M50,170 Q45,165 48,158 L75,158 Q80,165 75,170 L75,200 Q80,205 75,210 L48,210 Q45,205 50,200 Z" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="0.5" />
-                    <path d="M225,158 L252,158 Q257,165 252,170 L252,200 Q257,205 252,210 L225,210 Q220,205 225,200 Z" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="0.5" />
-                    <rect x="53" y="165" width="22" height="12" rx="4" fill="#fef3c7" stroke="#f59e0b" strokeWidth="0.5" />
-                    <rect x="225" y="165" width="22" height="12" rx="4" fill="#fef3c7" stroke="#f59e0b" strokeWidth="0.5" />
-                    <ellipse cx="64" cy="172" rx="5" ry="3" fill="#fef9c3" opacity="0.6" />
-                    <ellipse cx="236" cy="172" rx="5" ry="3" fill="#fef9c3" opacity="0.6" />
-                    <ellipse cx="150" cy="330" rx="35" ry="8" fill="none" stroke="#9ca3af" strokeWidth="0.3" strokeDasharray="4,4" />
-                  </g>
-                )}
-
-                {activeView === 'rear' && (
-                  <g filter="url(#carShadow)">
-                    <path d="M70,340 L70,300 Q70,280 90,275 L210,275 Q230,280 230,300 L230,340 Q230,355 215,360 L85,360 Q70,355 70,340 Z" fill="#374151" stroke="#1f2937" strokeWidth="1" />
-                    <rect x="75" y="305" width="150" height="30" rx="3" fill="#ef4444" opacity="0.8" />
-                    <rect x="75" y="318" width="150" height="10" rx="2" fill="#fca5a5" />
-                    <path d="M80,270 Q80,240 100,235 L200,235 Q220,240 220,270 L220,295 Q220,305 210,308 L90,308 Q80,305 80,295 Z" fill="#4b5563" stroke="#374151" strokeWidth="0.5" />
-                    <path d="M90,160 Q90,120 110,115 L190,115 Q210,120 210,160 L210,230 Q210,240 200,242 L100,242 Q90,240 90,230 Z" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="1" />
-                    <path d="M100,70 Q100,55 118,52 L182,52 Q200,55 200,70 L200,120 Q200,130 188,133 L112,133 Q100,130 100,120 Z" fill="url(#glassGrad)" stroke="#60a5fa" strokeWidth="0.5" rx="5" />
-                    <line x1="150" y1="52" x2="150" y2="133" stroke="#9ca3af" strokeWidth="0.5" />
-                    <rect x="68" y="165" width="22" height="14" rx="3" fill="#fecaca" stroke="#ef4444" strokeWidth="0.5" />
-                    <rect x="210" y="165" width="22" height="14" rx="3" fill="#fecaca" stroke="#ef4444" strokeWidth="0.5" />
-                    <path d="M50,170 Q45,165 48,158 L75,158 Q80,165 75,170 L75,200 Q80,205 75,210 L48,210 Q45,205 50,200 Z" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="0.5" />
-                    <path d="M225,158 L252,158 Q257,165 252,170 L252,200 Q257,205 252,210 L225,210 Q220,205 225,200 Z" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="0.5" />
-                    <ellipse cx="150" cy="330" rx="35" ry="8" fill="none" stroke="#9ca3af" strokeWidth="0.3" strokeDasharray="4,4" />
-                  </g>
-                )}
-
-                {activeView === 'left' && (
-                  <g filter="url(#carShadow)">
-                    <path d="M30,310 L30,280 Q30,270 40,268 L60,265 Q70,262 75,265 L75,310 Q70,318 60,315 L40,312 Q30,315 30,310 Z" fill="#374151" stroke="#1f2937" strokeWidth="0.8" />
-                    <path d="M325,310 L325,280 Q325,270 315,268 L295,265 Q285,262 280,265 L280,310 Q285,318 295,315 L315,312 Q325,315 325,310 Z" fill="#374151" stroke="#1f2937" strokeWidth="0.8" />
-                    <ellipse cx="60" cy="310" rx="18" ry="18" fill="#1f2937" stroke="#111827" strokeWidth="0.8" />
-                    <ellipse cx="60" cy="310" rx="10" ry="10" fill="#374151" />
-                    <ellipse cx="60" cy="310" rx="4" ry="4" fill="#6b7280" />
-                    <ellipse cx="295" cy="310" rx="18" ry="18" fill="#1f2937" stroke="#111827" strokeWidth="0.8" />
-                    <ellipse cx="295" cy="310" rx="10" ry="10" fill="#374151" />
-                    <ellipse cx="295" cy="310" rx="4" ry="4" fill="#6b7280" />
-                    <path d="M55,130 L300,130 L300,270 L55,270 Z" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="1" />
-                    <path d="M75,145 L155,145 L155,255 L75,255 Z" fill="url(#glassGrad)" stroke="#60a5fa" strokeWidth="0.5" rx="3" />
-                    <path d="M160,145 L240,145 L240,255 L160,255 Z" fill="url(#glassGrad)" stroke="#60a5fa" strokeWidth="0.5" rx="3" />
-                    <path d="M245,145 L290,145 L290,255 L245,255 Z" fill="url(#glassGrad)" stroke="#60a5fa" strokeWidth="0.5" rx="3" />
-                    <line x1="155" y1="145" x2="155" y2="255" stroke="#9ca3af" strokeWidth="0.8" />
-                    <line x1="240" y1="145" x2="240" y2="255" stroke="#9ca3af" strokeWidth="0.8" />
-                    <path d="M115,130 Q110,120 115,115 L155,115 Q160,120 155,130" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="0.5" />
-                    <rect x="45" y="160" width="12" height="8" rx="2" fill="#fef3c7" stroke="#f59e0b" strokeWidth="0.3" />
-                    <rect x="300" y="165" width="10" height="10" rx="2" fill="#fecaca" stroke="#ef4444" strokeWidth="0.3" />
-                    <path d="M35,200 Q33,195 36,190 L52,190 Q55,195 52,200" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="0.5" />
-                  </g>
-                )}
-
-                {activeView === 'right' && (
-                  <g filter="url(#carShadow)">
-                    <path d="M370,310 L370,280 Q370,270 360,268 L340,265 Q330,262 325,265 L325,310 Q330,318 340,315 L360,312 Q370,315 370,310 Z" fill="#374151" stroke="#1f2937" strokeWidth="0.8" />
-                    <path d="M75,310 L75,280 Q75,270 85,268 L105,265 Q115,262 120,265 L120,310 Q115,318 105,315 L85,312 Q75,315 75,310 Z" fill="#374151" stroke="#1f2937" strokeWidth="0.8" />
-                    <ellipse cx="345" cy="310" rx="18" ry="18" fill="#1f2937" stroke="#111827" strokeWidth="0.8" />
-                    <ellipse cx="345" cy="310" rx="10" ry="10" fill="#374151" />
-                    <ellipse cx="345" cy="310" rx="4" ry="4" fill="#6b7280" />
-                    <ellipse cx="100" cy="310" rx="18" ry="18" fill="#1f2937" stroke="#111827" strokeWidth="0.8" />
-                    <ellipse cx="100" cy="310" rx="10" ry="10" fill="#374151" />
-                    <ellipse cx="100" cy="310" rx="4" ry="4" fill="#6b7280" />
-                    <path d="M345,130 L100,130 L100,270 L345,270 Z" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="1" />
-                    <path d="M325,145 L245,145 L245,255 L325,255 Z" fill="url(#glassGrad)" stroke="#60a5fa" strokeWidth="0.5" rx="3" />
-                    <path d="M240,145 L160,145 L160,255 L240,255 Z" fill="url(#glassGrad)" stroke="#60a5fa" strokeWidth="0.5" rx="3" />
-                    <path d="M155,145 L110,145 L110,255 L155,255 Z" fill="url(#glassGrad)" stroke="#60a5fa" strokeWidth="0.5" rx="3" />
-                    <line x1="245" y1="145" x2="245" y2="255" stroke="#9ca3af" strokeWidth="0.8" />
-                    <line x1="160" y1="145" x2="160" y2="255" stroke="#9ca3af" strokeWidth="0.8" />
-                    <path d="M285,130 Q290,120 285,115 L245,115 Q240,120 245,130" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="0.5" />
-                    <rect x="343" y="160" width="12" height="8" rx="2" fill="#fef3c7" stroke="#f59e0b" strokeWidth="0.3" />
-                    <rect x="90" y="165" width="10" height="10" rx="2" fill="#fecaca" stroke="#ef4444" strokeWidth="0.3" />
-                    <path d="M365,200 Q367,195 364,190 L348,190 Q345,195 348,200" fill="url(#carBodyGrad)" stroke="#9ca3af" strokeWidth="0.5" />
-                  </g>
-                )}
-
+            <div className="relative bg-gradient-to-b from-gray-100 to-gray-200 rounded-lg p-6 flex justify-center" style={{ minHeight: '400px' }}>
+              <div className="relative" style={{ width: '100%', maxWidth: '400px' }}>
+                <ViewComponent />
                 {currentZones.map(zone => {
                   const damage = getZoneDamage(zone.id);
+                  const left = `${(zone.cx / 400) * 100}%`;
+                  const top = `${(zone.cy / 380) * 100}%`;
                   return (
-                    <g key={zone.id}>
-                      <path
-                        d={zone.path}
-                        fill={damage ? getDamageColor(damage.damage_type) + '30' : 'transparent'}
-                        stroke={damage ? getDamageColor(damage.damage_type) : 'transparent'}
-                        strokeWidth={damage ? 2.5 : 0}
-                        className="cursor-pointer hover:fill-primary/10 transition-all duration-200"
-                        onClick={() => handleZoneClick(zone.id)}
-                      />
-                      {damage && (
-                        <g className="cursor-pointer" onClick={() => handleZoneClick(zone.id)}>
-                          <circle cx={zone.cx} cy={zone.cy} r="10" fill={getDamageColor(damage.damage_type)} stroke="white" strokeWidth="2.5" />
-                          <circle cx={zone.cx} cy={zone.cy} r="3" fill="white" />
-                        </g>
+                    <div key={zone.id} className="absolute" style={{ left, top, transform: 'translate(-50%, -50%)' }}>
+                      {damage ? (
+                        <button onClick={() => handleZoneClick(zone.id)}
+                          className="relative group cursor-pointer"
+                          title={zone.label}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-transform hover:scale-110"
+                            style={{ backgroundColor: getDamageColor(damage.damage_type) }}>
+                            <span className="text-white text-xs font-bold">!</span>
+                          </div>
+                          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                            {zone.label}
+                          </div>
+                        </button>
+                      ) : (
+                        <button onClick={() => handleZoneClick(zone.id)}
+                          className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 hover:border-primary hover:bg-primary/10 transition-all cursor-pointer opacity-0 hover:opacity-100"
+                          title={zone.label} />
                       )}
-                      {!damage && (
-                        <circle
-                          cx={zone.cx} cy={zone.cy} r="6"
-                          fill="transparent"
-                          stroke="transparent"
-                          className="cursor-pointer hover:fill-primary/20 hover:stroke-primary/40 transition-all duration-200"
-                          onClick={() => handleZoneClick(zone.id)}
-                        />
-                      )}
-                    </g>
+                    </div>
                   );
                 })}
-              </svg>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 mt-3">
+            <div className="flex flex-wrap gap-2 mt-4">
               {DAMAGE_TYPES.map(d => (
-                <div key={d.value} className="flex items-center gap-1 text-xs">
+                <div key={d.value} className="flex items-center gap-1.5 text-xs">
                   <span className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
-                  <span>{d.label}</span>
+                  <span className="text-gray-600">{d.label}</span>
                 </div>
               ))}
             </div>
@@ -363,8 +617,7 @@ function InspectionContent() {
           )}
 
           <div className="card p-4 sm:p-6">
-            <h3 className="font-bold text-gray-800 mb-3">Vista: {VIEWS.find(v => v.id === activeView)?.label}</h3>
-            <p className="text-xs text-gray-500 mb-3">Haz clic en una zona del diagrama para marcar daños</p>
+            <h3 className="font-bold text-gray-800 mb-3">Daños en vista: {VIEWS.find(v => v.id === activeView)?.label}</h3>
             {viewInspections.length === 0 ? (
               <p className="text-sm text-gray-500">Sin daños en esta vista.</p>
             ) : (
@@ -384,25 +637,23 @@ function InspectionContent() {
             )}
           </div>
 
-          <div className="card p-4 sm:p-6">
-            <h3 className="font-bold text-gray-800 mb-3">Todos los daños ({inspections.length})</h3>
-            {inspections.length === 0 ? (
-              <p className="text-sm text-gray-500">Sin daños registrados.</p>
-            ) : (
-              <div className="space-y-2">
-                {inspections.map((insp: any) => (
-                  <div key={insp.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: getDamageColor(insp.damage_type) }} />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{getZoneLabel(insp.zone)}</p>
-                      <p className="text-xs text-gray-500 capitalize">{insp.damage_type.replace('_', ' ')} · {insp.severity}</p>
-                    </div>
-                    <button onClick={() => handleDelete(insp.id)} className="text-gray-400 hover:text-danger"><Trash2 size={14} /></button>
-                  </div>
-                ))}
+          {inspections.length > 0 && (
+            <div className="card p-4 sm:p-6">
+              <h3 className="font-bold text-gray-800 mb-3">Resumen total ({inspections.length} daños)</h3>
+              <div className="flex flex-wrap gap-2">
+                {DAMAGE_TYPES.map(d => {
+                  const count = inspections.filter(i => i.damage_type === d.value).length;
+                  if (count === 0) return null;
+                  return (
+                    <span key={d.value} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: d.color + '20', color: d.color }}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
+                      {d.label}: {count}
+                    </span>
+                  );
+                })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <Link href={`/workshop/${id}`} className="btn-primary w-full text-center">Volver a la Orden</Link>
         </div>
