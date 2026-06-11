@@ -525,6 +525,23 @@ function InspectionContent() {
     catch { toast.error('Error al eliminar'); }
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(workshopAPI.getInspectionPDF(parseInt(id)), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inspeccion_orden_${id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast.error('Error al descargar PDF'); }
+  };
+
   const totalZones = Object.values(ZONES).flat().length;
   const damagedCount = inspections.filter(i => i.notes !== '__OK__').length;
   const okCount = inspections.filter(i => i.notes === '__OK__').length;
@@ -547,10 +564,9 @@ function InspectionContent() {
             <p className="text-gray-500">Orden #{order.id} - {order.vehicle?.plate_number} {order.vehicle?.brand} {order.vehicle?.model}</p>
           </div>
         </div>
-        <a href={workshopAPI.getInspectionPDF(parseInt(id))} target="_blank" rel="noopener noreferrer"
-          className="btn-outline flex items-center gap-2 text-sm">
+        <button onClick={handleDownloadPDF} className="btn-outline flex items-center gap-2 text-sm">
           <Download size={16} /> Exportar PDF
-        </a>
+        </button>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
