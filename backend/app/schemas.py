@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import date, datetime
 
 
@@ -599,7 +599,9 @@ class WorkshopChecklistResponse(BaseModel):
 
 
 class WorkshopPartsUsedCreate(BaseModel):
-    product_id: int
+    product_id: Optional[int] = None
+    workshop_inventory_id: Optional[int] = None
+    custom_name: Optional[str] = None
     quantity: int = 1
     unit_cost: float = 0
     unit_price: float = 0
@@ -608,12 +610,15 @@ class WorkshopPartsUsedCreate(BaseModel):
 class WorkshopPartsUsedResponse(BaseModel):
     id: int
     order_id: int
-    product_id: int
+    product_id: Optional[int] = None
+    workshop_inventory_id: Optional[int] = None
+    custom_name: Optional[str] = None
     quantity: int
     unit_cost: float
     unit_price: float
     created_at: Optional[datetime] = None
     product: Optional[ProductResponse] = None
+    inventory_item: Optional[Any] = None
 
     class Config:
         from_attributes = True

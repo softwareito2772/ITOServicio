@@ -248,6 +248,7 @@ export const workshopAPI = {
   getOrder: (id: number) => api.get(`/workshop/${id}`),
   createOrder: (data: any) => api.post('/workshop/', data),
   updateOrder: (id: number, data: any) => api.put(`/workshop/${id}`, data),
+  addPartsToOrder: (orderId: number, parts: any[]) => api.post(`/workshop/${orderId}/parts`, parts),
   deleteOrder: (id: number, reason: string) => api.delete(`/workshop/${id}`, { params: { cancel_reason: reason } }),
   getStats: () => api.get('/workshop/summary/stats'),
   getVehicles: (search?: string, type?: string) => {
@@ -291,6 +292,7 @@ export const workshopAPI = {
   updateInventoryItem: (id: number, data: any) => api.put(`/workshop/inventory/${id}`, data),
   deleteInventoryItem: (id: number) => api.delete(`/workshop/inventory/${id}`),
   getInventoryStats: () => api.get('/workshop/inventory/stats'),
+  searchInventory: (q: string) => api.get(`/workshop/inventory/search?q=${encodeURIComponent(q)}`),
   getInvoices: (status?: string) => {
     const q = status ? `?status=${status}` : '';
     return api.get('/workshop/invoices' + q);

@@ -456,7 +456,9 @@ class WorkshopPartsUsed(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("workshop_orders.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    workshop_inventory_id = Column(Integer, ForeignKey("workshop_inventory.id"), nullable=True)
+    custom_name = Column(String(255), nullable=True)
     quantity = Column(Integer, default=1)
     unit_cost = Column(Float, default=0)
     unit_price = Column(Float, default=0)
@@ -464,6 +466,7 @@ class WorkshopPartsUsed(Base):
 
     order = relationship("WorkshopOrder", back_populates="parts_used")
     product = relationship("Product")
+    inventory_item = relationship("WorkshopInventory")
 
 
 class WorkshopInspection(Base):

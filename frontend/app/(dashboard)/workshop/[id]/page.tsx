@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Loader2, Save, CheckCircle, X, Download, Clock, Wrench, Car, ChevronDown, ChevronRight, Plus, Trash2, Eye, Image, Camera } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, CheckCircle, X, Download, Clock, Wrench, Car, ChevronDown, ChevronRight, Plus, Trash2, Eye, Image, Camera, Package, Search } from 'lucide-react';
 import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatDate, formatCurrency } from '@/lib/utils';
@@ -44,6 +44,13 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [orderImages, setOrderImages] = useState<any[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [inspections, setInspections] = useState<any[]>([]);
+  const [activeCategories, setActiveCategories] = useState<Record<string, boolean>>({});
+  const [partsList, setPartsList] = useState<any[]>([]);
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [inventoryResults, setInventoryResults] = useState<any[]>([]);
+  const [showInventorySearch, setShowInventorySearch] = useState<number | null>(null);
+  const [showOtrosForm, setShowOtrosForm] = useState<number | null>(null);
+  const [otrosData, setOtrosData] = useState({ name: '', quantity: '1', unit_cost: '0', unit_price: '0' });
 
   useEffect(() => { loadOrder(); }, [id]);
 
@@ -142,6 +149,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         item_name: t.item_name, item_category: t.item_category,
         status: '', notes: '', needs_replacement: false,
       })));
+      const cats: Record<string, boolean> = {};
+      filtered.forEach((t: any) => { if (!cats[t.item_category]) cats[t.item_category] = false; });
+      setActiveCategories(cats);
       setShowChecklistForm(true);
     } catch { toast.error('Error al cargar checklist'); }
   };
@@ -158,6 +168,71 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Error al guardar');
     } finally { setSavingChecklist(false); }
+  };
+
+  const searchInventory = async (q: string) => {
+    setInventorySearch(q);
+    if (q.length < 2) { setInventoryResults([]); return; }
+    try {
+      const res = await workshopAPI.searchInventory(q);
+      setInventoryResults(res.data);
+    } catch {}
+  };
+
+  const addPartFromInventory = (item: any) => {
+    setPartsList([...partsList, {
+      workshop_inventory_id: item.id,
+      name: item.name,
+      quantity: 1,
+      unit_cost: item.unit_cost,
+      unit_price: item.unit_price,
+      current_stock: item.current_stock,
+    }]);
+    setInventorySearch('');
+    setInventoryResults([]);
+    setShowInventorySearch(null);
+  };
+
+  const addPartOtros = () => {
+    if (!otrosData.name.trim()) { toast.error('Ingresa el nombre del repuesto'); return; }
+    setPartsList([...partsList, {
+      custom_name: otrosData.name,
+      quantity: parseInt(otrosData.quantity) || 1,
+      unit_cost: parseFloat(otrosData.unit_cost) || 0,
+      unit_price: parseFloat(otrosData.unit_price) || 0,
+    }]);
+    setOtrosData({ name: '', quantity: '1', unit_cost: '0', unit_price: '0' });
+    setShowOtrosForm(null);
+  };
+
+  const removePart = (idx: number) => {
+    setPartsList(partsList.filter((_, i) => i !== idx));
+  };
+
+  const updatePart = (idx: number, field: string, value: any) => {
+    const updated = [...partsList];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setPartsList(updated);
+  };
+
+  const savePartsUsed = async () => {
+    if (partsList.length === 0) { toast.error('Agrega al menos una pieza'); return; }
+    try {
+      const payload = partsList.map(p => ({
+        workshop_inventory_id: p.workshop_inventory_id || null,
+        custom_name: p.custom_name || null,
+        product_id: p.product_id || null,
+        quantity: parseInt(p.quantity) || 1,
+        unit_cost: parseFloat(p.unit_cost) || 0,
+        unit_price: parseFloat(p.unit_price) || 0,
+      }));
+      await workshopAPI.addPartsToOrder(order.id, payload);
+      toast.success('Piezas guardadas');
+      setPartsList([]);
+      loadOrder();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Error al guardar piezas');
+    }
   };
 
   const handleDelete = async () => {
@@ -376,44 +451,45 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             )}
 
             {showChecklistForm && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
-                <h3 className="font-semibold text-gray-700">Agregar ítems al checklist</h3>
-                <p className="text-xs text-gray-500">Los ítems marcados como "NA" no se guardarán ni aparecerán en el PDF</p>
-                {Object.entries(
-                  newChecklist.reduce((acc: any, item: any, idx: number) => {
-                    if (!acc[item.item_category]) acc[item.item_category] = [];
-                    acc[item.item_category].push({ ...item, idx });
-                    return acc;
-                  }, {})
-                ).map(([cat, items]: [string, any]) => (
-                  <div key={cat}>
-                    <h4 className="font-medium text-gray-700 text-sm capitalize mb-1">{CHECKLIST_CATEGORIES[cat] || cat}</h4>
-                    <div className="space-y-1">
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-700">Checklist - Selecciona categorías</h3>
+                  <button onClick={() => setShowChecklistForm(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                </div>
+                <p className="text-xs text-gray-500">Activa las categorías que apliquen. Solo se guardarán los ítems marcados.</p>
+
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(activeCategories).map(([cat, active]) => (
+                    <button key={cat} onClick={() => setActiveCategories({ ...activeCategories, [cat]: !active })}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${active ? 'bg-primary text-white' : 'bg-white border border-gray-300 text-gray-500 hover:border-primary'}`}>
+                      {CHECKLIST_CATEGORIES[cat] || cat}
+                    </button>
+                  ))}
+                </div>
+
+                {Object.entries(activeCategories).filter(([_, active]) => active).map(([cat]) => {
+                  const items = newChecklist.filter(i => i.item_category === cat);
+                  return (
+                    <div key={cat} className="bg-white rounded-lg p-3 space-y-2">
+                      <h4 className="font-medium text-primary text-sm capitalize">{CHECKLIST_CATEGORIES[cat] || cat}</h4>
                       {items.map((item: any) => (
-                        <div key={item.idx} className="flex flex-col sm:flex-row gap-2 p-2 bg-white rounded text-sm">
+                        <div key={item.idx} className="flex flex-col sm:flex-row gap-2 p-2 bg-gray-50 rounded text-sm">
                           <span className="flex-1">{item.item_name}</span>
                           <select value={newChecklist[item.idx]?.status || ''}
-                            onChange={e => {
-                              const updated = [...newChecklist];
-                              updated[item.idx] = { ...updated[item.idx], status: e.target.value };
-                              setNewChecklist(updated);
-                            }}
+                            onChange={e => { const u = [...newChecklist]; u[item.idx] = { ...u[item.idx], status: e.target.value }; setNewChecklist(u); }}
                             className="input-field text-xs py-1 w-full sm:w-36">
                             <option value="">Seleccionar</option>
                             {CHECKLIST_STATUS_OPTIONS.map(s => <option key={s} value={s}>{s === 'na' ? 'No aplica' : s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                           </select>
                           <input type="text" placeholder="Notas" value={newChecklist[item.idx]?.notes || ''}
-                            onChange={e => {
-                              const updated = [...newChecklist];
-                              updated[item.idx] = { ...updated[item.idx], notes: e.target.value };
-                              setNewChecklist(updated);
-                            }}
+                            onChange={e => { const u = [...newChecklist]; u[item.idx] = { ...u[item.idx], notes: e.target.value }; setNewChecklist(u); }}
                             className="input-field text-xs py-1 flex-1" />
                         </div>
                       ))}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+
                 <div className="flex gap-3 pt-2">
                   <button onClick={() => setShowChecklistForm(false)} className="btn-outline flex-1 text-sm">Cancelar</button>
                   <button onClick={saveNewChecklist} disabled={savingChecklist} className="btn-primary flex-1 text-sm flex items-center justify-center gap-1">
@@ -421,6 +497,119 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+
+          <div className="card p-4 sm:p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-gray-800 flex items-center gap-2"><Package size={18} /> Repuestos / Accesorios</h2>
+              <div className="flex gap-2">
+                <button onClick={() => setShowInventorySearch(showInventorySearch === order.id ? null : order.id)}
+                  className="text-sm text-primary hover:underline flex items-center gap-1">
+                  <Plus size={14} /> Del inventario
+                </button>
+                <button onClick={() => setShowOtrosForm(showOtrosForm === order.id ? null : order.id)}
+                  className="text-sm text-gray-500 hover:underline flex items-center gap-1">
+                  <Plus size={14} /> Otros
+                </button>
+              </div>
+            </div>
+
+            {showInventorySearch === order.id && (
+              <div className="mb-3 p-3 bg-gray-50 rounded-lg space-y-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="text" value={inventorySearch} onChange={e => searchInventory(e.target.value)}
+                      placeholder="Buscar repuesto en inventario..." className="input-field pl-7 text-sm" autoFocus />
+                  </div>
+                  <button onClick={() => { setShowInventorySearch(null); setInventoryResults([]); }} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+                </div>
+                {inventoryResults.length > 0 && (
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {inventoryResults.map((item: any) => (
+                      <button key={item.id} onClick={() => addPartFromInventory(item)}
+                        className="w-full flex items-center justify-between p-2 bg-white rounded text-sm hover:bg-primary/5 text-left">
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-xs text-gray-400">Stock: {item.current_stock} | ${item.unit_price}</p>
+                        </div>
+                        <Plus size={14} className="text-primary" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {inventorySearch.length >= 2 && inventoryResults.length === 0 && (
+                  <p className="text-xs text-gray-400 text-center">Sin resultados</p>
+                )}
+              </div>
+            )}
+
+            {showOtrosForm === order.id && (
+              <div className="mb-3 p-3 bg-gray-50 rounded-lg space-y-2">
+                <p className="text-xs text-gray-500">Repuesto o accesorio no registrado en inventario</p>
+                <input type="text" value={otrosData.name} onChange={e => setOtrosData({ ...otrosData, name: e.target.value })}
+                  placeholder="Nombre del repuesto" className="input-field text-sm" autoFocus />
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] text-gray-400">Cant.</label>
+                    <input type="number" value={otrosData.quantity} onChange={e => setOtrosData({ ...otrosData, quantity: e.target.value })} className="input-field text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-400">Costo</label>
+                    <input type="number" step="0.01" value={otrosData.unit_cost} onChange={e => setOtrosData({ ...otrosData, unit_cost: e.target.value })} className="input-field text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-400">Precio</label>
+                    <input type="number" step="0.01" value={otrosData.unit_price} onChange={e => setOtrosData({ ...otrosData, unit_price: e.target.value })} className="input-field text-sm" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowOtrosForm(null)} className="btn-outline flex-1 text-sm">Cancelar</button>
+                  <button onClick={addPartOtros} className="btn-primary flex-1 text-sm">Agregar</button>
+                </div>
+              </div>
+            )}
+
+            {partsList.length > 0 ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-12 gap-2 text-[10px] text-gray-400 font-medium px-2">
+                  <div className="col-span-4">Repuesto</div>
+                  <div className="col-span-2 text-center">Cant.</div>
+                  <div className="col-span-2 text-center">Costo</div>
+                  <div className="col-span-2 text-center">Precio</div>
+                  <div className="col-span-2"></div>
+                </div>
+                {partsList.map((part: any, idx: number) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-center p-2 bg-gray-50 rounded text-sm">
+                    <div className="col-span-4 truncate font-medium text-xs">
+                      {part.name || part.custom_name}
+                      {part.current_stock !== undefined && <span className="text-[10px] text-gray-400 block">Stock: {part.current_stock}</span>}
+                    </div>
+                    <div className="col-span-2">
+                      <input type="number" value={part.quantity} onChange={e => updatePart(idx, 'quantity', e.target.value)} className="input-field text-xs text-center py-1" />
+                    </div>
+                    <div className="col-span-2">
+                      <input type="number" step="0.01" value={part.unit_cost} onChange={e => updatePart(idx, 'unit_cost', e.target.value)} className="input-field text-xs text-center py-1" />
+                    </div>
+                    <div className="col-span-2">
+                      <input type="number" step="0.01" value={part.unit_price} onChange={e => updatePart(idx, 'unit_price', e.target.value)} className="input-field text-xs text-center py-1" />
+                    </div>
+                    <div className="col-span-2 flex justify-end">
+                      <button onClick={() => removePart(idx)} className="text-danger hover:text-danger/80"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-2 border-t text-sm">
+                  <span className="text-gray-500">Total piezas:</span>
+                  <span className="font-bold">{formatCurrency(partsList.reduce((acc, p) => acc + (parseFloat(p.unit_price) || 0) * (parseInt(p.quantity) || 1), 0))}</span>
+                </div>
+                <button onClick={savePartsUsed} className="btn-primary w-full text-sm flex items-center justify-center gap-1">
+                  <Save size={14} /> Guardar repuestos
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">Sin repuestos. Agrega desde el inventario o "Otros".</p>
             )}
           </div>
 

@@ -17,7 +17,7 @@ from ..schemas import (
     WorkshopVehicleCreate, WorkshopVehicleUpdate, WorkshopVehicleResponse,
     WorkshopOrderCreate, WorkshopOrderUpdate, WorkshopOrderResponse,
     WorkshopChecklistResponse, WorkshopChecklistTemplateCreate,
-    WorkshopChecklistTemplateResponse, WorkshopPartsUsedResponse,
+    WorkshopChecklistTemplateResponse,     WorkshopPartsUsedResponse, WorkshopPartsUsedCreate,
     WorkshopMechanicCreate, WorkshopMechanicUpdate, WorkshopMechanicResponse,
     WorkshopInspectionCreate, WorkshopInspectionResponse,
     WorkshopInspectionImageCreate, WorkshopInspectionImageResponse,
@@ -562,6 +562,21 @@ async def get_inventory_stats(
     }
 
 
+@router.get("/inventory/search")
+async def search_inventory(
+    q: str = "",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    query = db.query(WorkshopInventory).filter(WorkshopInventory.is_active == True)
+    if current_user.role not in ['super_admin', 'admin']:
+        query = query.filter(WorkshopInventory.company_id == current_user.company_id)
+    if q:
+        query = query.filter(WorkshopInventory.name.ilike(f"%{q}%"))
+    items = query.order_by(WorkshopInventory.name).limit(20).all()
+    return [{"id": i.id, "name": i.name, "current_stock": i.current_stock, "unit_price": i.unit_price, "unit_cost": i.unit_cost, "sku": i.sku} for i in items]
+
+
 # ==================== WORKSHOP INVOICES (Fase 4) ====================
 
 @router.get("/invoices", response_model=List[WorkshopInvoiceResponse])
@@ -894,9 +909,24 @@ async def create_workshop_order(
 
     cost_parts = 0
     for part in data.parts_used:
-        product = db.query(Product).filter(Product.id == part.product_id).first()
-        if product:
-            if product.stock >= part.quantity:
+        part_total = part.unit_price * part.quantity
+        cost_parts += part_total
+
+        if part.workshop_inventory_id:
+            inv_item = db.query(WorkshopInventory).filter(WorkshopInventory.id == part.workshop_inventory_id).first()
+            if inv_item and inv_item.current_stock >= part.quantity:
+                inv_item.current_stock -= part.quantity
+            db.add(WorkshopPartsUsed(
+                order_id=order.id,
+                workshop_inventory_id=part.workshop_inventory_id,
+                custom_name=part.custom_name,
+                quantity=part.quantity,
+                unit_cost=part.unit_cost,
+                unit_price=part.unit_price
+            ))
+        elif part.product_id:
+            product = db.query(Product).filter(Product.id == part.product_id).first()
+            if product and product.stock >= part.quantity:
                 product.stock -= part.quantity
                 db.add(InventoryMovement(
                     product_id=part.product_id,
@@ -906,11 +936,17 @@ async def create_workshop_order(
                     created_by=current_user.id,
                     company_id=current_user.company_id
                 ))
-            part_total = part.unit_price * part.quantity
-            cost_parts += part_total
             db.add(WorkshopPartsUsed(
                 order_id=order.id,
                 product_id=part.product_id,
+                quantity=part.quantity,
+                unit_cost=part.unit_cost,
+                unit_price=part.unit_price
+            ))
+        else:
+            db.add(WorkshopPartsUsed(
+                order_id=order.id,
+                custom_name=part.custom_name or "Otro",
                 quantity=part.quantity,
                 unit_cost=part.unit_cost,
                 unit_price=part.unit_price
@@ -949,6 +985,65 @@ async def update_workshop_order(
     db.commit()
     db.refresh(order)
     return order
+
+
+@router.post("/{order_id}/parts")
+async def add_parts_to_order(
+    order_id: int,
+    parts: List[WorkshopPartsUsedCreate],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    order = db.query(WorkshopOrder).filter(WorkshopOrder.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+
+    for part in parts:
+        part_total = part.unit_price * part.quantity
+
+        if part.workshop_inventory_id:
+            inv_item = db.query(WorkshopInventory).filter(WorkshopInventory.id == part.workshop_inventory_id).first()
+            if inv_item and inv_item.current_stock >= part.quantity:
+                inv_item.current_stock -= part.quantity
+            db.add(WorkshopPartsUsed(
+                order_id=order.id,
+                workshop_inventory_id=part.workshop_inventory_id,
+                custom_name=part.custom_name,
+                quantity=part.quantity,
+                unit_cost=part.unit_cost,
+                unit_price=part.unit_price
+            ))
+        elif part.product_id:
+            product = db.query(Product).filter(Product.id == part.product_id).first()
+            if product and product.stock >= part.quantity:
+                product.stock -= part.quantity
+                db.add(InventoryMovement(
+                    product_id=part.product_id,
+                    quantity=part.quantity,
+                    movement_type="salida",
+                    reason=f"Taller Orden #{order.id}",
+                    created_by=current_user.id,
+                    company_id=current_user.company_id
+                ))
+            db.add(WorkshopPartsUsed(
+                order_id=order.id,
+                product_id=part.product_id,
+                quantity=part.quantity,
+                unit_cost=part.unit_cost,
+                unit_price=part.unit_price
+            ))
+        else:
+            db.add(WorkshopPartsUsed(
+                order_id=order.id,
+                custom_name=part.custom_name or "Otro",
+                quantity=part.quantity,
+                unit_cost=part.unit_cost,
+                unit_price=part.unit_price
+            ))
+
+    db.commit()
+    db.refresh(order)
+    return {"message": f"{len(parts)} pieza(s) agregada(s)"}
 
 
 @router.post("/{order_id}/checklist")
@@ -996,17 +1091,22 @@ async def delete_workshop_order(
 
     parts = db.query(WorkshopPartsUsed).filter(WorkshopPartsUsed.order_id == order_id).all()
     for part in parts:
-        product = db.query(Product).filter(Product.id == part.product_id).first()
-        if product:
-            product.stock += part.quantity
-            db.add(InventoryMovement(
-                product_id=part.product_id,
-                quantity=part.quantity,
-                movement_type="entrada",
-                reason=f"Devolución - Orden Taller #{order.id} cancelada",
-                created_by=current_user.id,
-                company_id=current_user.company_id
-            ))
+        if part.workshop_inventory_id:
+            inv_item = db.query(WorkshopInventory).filter(WorkshopInventory.id == part.workshop_inventory_id).first()
+            if inv_item:
+                inv_item.current_stock += part.quantity
+        elif part.product_id:
+            product = db.query(Product).filter(Product.id == part.product_id).first()
+            if product:
+                product.stock += part.quantity
+                db.add(InventoryMovement(
+                    product_id=part.product_id,
+                    quantity=part.quantity,
+                    movement_type="entrada",
+                    reason=f"Devolución - Orden Taller #{order.id} cancelada",
+                    created_by=current_user.id,
+                    company_id=current_user.company_id
+                ))
 
     order.status = "cancelled"
     order.cancel_reason = cancel_reason
@@ -1125,8 +1225,16 @@ async def generate_checklist_pdf(
         data = [['Pieza', 'Cant', 'Costo', 'Precio']]
         total_parts = 0
         for part in order.parts_used:
-            product = db.query(Product).filter(Product.id == part.product_id).first()
-            name = product.name if product else 'N/A'
+            if part.custom_name:
+                name = part.custom_name
+            elif part.workshop_inventory_id:
+                inv = db.query(WorkshopInventory).filter(WorkshopInventory.id == part.workshop_inventory_id).first()
+                name = inv.name if inv else 'N/A'
+            elif part.product_id:
+                product = db.query(Product).filter(Product.id == part.product_id).first()
+                name = product.name if product else 'N/A'
+            else:
+                name = 'N/A'
             data.append([name, str(part.quantity), f"${part.unit_cost:.2f}", f"${part.unit_price:.2f}"])
             total_parts += part.unit_price * part.quantity
         data.append(['', '', 'Total:', f"${total_parts:.2f}"])
