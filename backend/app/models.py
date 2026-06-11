@@ -420,6 +420,7 @@ class WorkshopOrder(Base):
     client = relationship("Client")
     checklist = relationship("WorkshopChecklist", back_populates="order", cascade="all, delete-orphan")
     parts_used = relationship("WorkshopPartsUsed", back_populates="order", cascade="all, delete-orphan")
+    images = relationship("WorkshopOrderImage", back_populates="order", cascade="all, delete-orphan")
 
 
 class WorkshopChecklist(Base):
@@ -463,3 +464,91 @@ class WorkshopPartsUsed(Base):
 
     order = relationship("WorkshopOrder", back_populates="parts_used")
     product = relationship("Product")
+
+
+class WorkshopInspection(Base):
+    __tablename__ = "workshop_inspections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("workshop_orders.id"), nullable=False)
+    vehicle_id = Column(Integer, ForeignKey("workshop_vehicles.id"), nullable=False)
+    zone = Column(String(50), nullable=False)
+    damage_type = Column(String(50), nullable=False)
+    severity = Column(String(20), default="leve")
+    notes = Column(Text, nullable=True)
+    inspected_by = Column(String(255), nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    order = relationship("WorkshopOrder")
+    vehicle = relationship("WorkshopVehicle")
+    images = relationship("WorkshopInspectionImage", back_populates="inspection", cascade="all, delete-orphan")
+
+
+class WorkshopInspectionImage(Base):
+    __tablename__ = "workshop_inspection_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    inspection_id = Column(Integer, ForeignKey("workshop_inspections.id"), nullable=False)
+    image_url = Column(Text, nullable=False)
+    description = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    inspection = relationship("WorkshopInspection", back_populates="images")
+
+
+class WorkshopOrderImage(Base):
+    __tablename__ = "workshop_order_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("workshop_orders.id"), nullable=False)
+    image_url = Column(Text, nullable=False)
+    image_type = Column(String(20), nullable=False)  # arrival, departure, progress
+    description = Column(String(255), nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    order = relationship("WorkshopOrder", back_populates="images")
+
+
+class WorkshopInventory(Base):
+    __tablename__ = "workshop_inventory"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    sku = Column(String(100), nullable=True)
+    category = Column(String(100), nullable=True)
+    current_stock = Column(Integer, default=0)
+    min_stock = Column(Integer, default=5)
+    unit_cost = Column(Float, default=0)
+    unit_price = Column(Float, default=0)
+    supplier = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class WorkshopInvoice(Base):
+    __tablename__ = "workshop_invoices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("workshop_orders.id"), nullable=False)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=True)
+    invoice_number = Column(String(50), nullable=False)
+    subtotal = Column(Float, default=0)
+    tax = Column(Float, default=0)
+    discount = Column(Float, default=0)
+    total = Column(Float, default=0)
+    status = Column(String(20), default="pending")  # pending, paid, partially_paid, cancelled
+    paid_amount = Column(Float, default=0)
+    payment_method = Column(String(50), nullable=True)
+    payment_date = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    order = relationship("WorkshopOrder")
+    client = relationship("Client")

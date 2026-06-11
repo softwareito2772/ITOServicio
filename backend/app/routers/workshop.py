@@ -9,6 +9,8 @@ from ..database import get_db
 from ..models import (
     WorkshopVehicle, WorkshopOrder, WorkshopChecklist,
     WorkshopChecklistTemplate, WorkshopPartsUsed, WorkshopMechanic,
+    WorkshopInspection, WorkshopInspectionImage,
+    WorkshopOrderImage, WorkshopInventory, WorkshopInvoice,
     Client, User, Product, InventoryMovement, Company
 )
 from ..schemas import (
@@ -16,7 +18,12 @@ from ..schemas import (
     WorkshopOrderCreate, WorkshopOrderUpdate, WorkshopOrderResponse,
     WorkshopChecklistResponse, WorkshopChecklistTemplateCreate,
     WorkshopChecklistTemplateResponse, WorkshopPartsUsedResponse,
-    WorkshopMechanicCreate, WorkshopMechanicUpdate, WorkshopMechanicResponse
+    WorkshopMechanicCreate, WorkshopMechanicUpdate, WorkshopMechanicResponse,
+    WorkshopInspectionCreate, WorkshopInspectionResponse,
+    WorkshopInspectionImageCreate, WorkshopInspectionImageResponse,
+    WorkshopOrderImageCreate, WorkshopOrderImageResponse,
+    WorkshopInventoryCreate, WorkshopInventoryUpdate, WorkshopInventoryResponse,
+    WorkshopInvoiceCreate, WorkshopInvoiceUpdate, WorkshopInvoiceResponse
 )
 from ..auth import get_current_user
 
@@ -279,6 +286,307 @@ async def delete_mechanic(
     mechanic.is_active = False
     db.commit()
     return {"message": "Mecánico desactivado"}
+
+
+@router.get("/inspections/{order_id}", response_model=List[WorkshopInspectionResponse])
+async def get_order_inspections(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    inspections = db.query(WorkshopInspection).filter(
+        WorkshopInspection.order_id == order_id
+    ).all()
+    return inspections
+
+
+@router.post("/inspections", response_model=WorkshopInspectionResponse)
+async def create_inspection(
+    data: WorkshopInspectionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    inspection = WorkshopInspection(**data.model_dump(), company_id=current_user.company_id)
+    db.add(inspection)
+    db.commit()
+    db.refresh(inspection)
+    return inspection
+
+
+@router.post("/inspections/{inspection_id}/images", response_model=WorkshopInspectionImageResponse)
+async def add_inspection_image(
+    inspection_id: int,
+    data: WorkshopInspectionImageCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    inspection = db.query(WorkshopInspection).filter(WorkshopInspection.id == inspection_id).first()
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspección no encontrada")
+    image = WorkshopInspectionImage(inspection_id=inspection_id, **data.model_dump())
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+    return image
+
+
+@router.delete("/inspections/{inspection_id}")
+async def delete_inspection(
+    inspection_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    inspection = db.query(WorkshopInspection).filter(WorkshopInspection.id == inspection_id).first()
+    if not inspection:
+        raise HTTPException(status_code=404, detail="Inspección no encontrada")
+    db.delete(inspection)
+    db.commit()
+    return {"message": "Inspección eliminada"}
+
+
+# ==================== ORDER IMAGES (Fase 2) ====================
+
+@router.get("/orders/{order_id}/images", response_model=List[WorkshopOrderImageResponse])
+async def get_order_images(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return db.query(WorkshopOrderImage).filter(WorkshopOrderImage.order_id == order_id).all()
+
+
+@router.post("/orders/{order_id}/images", response_model=WorkshopOrderImageResponse)
+async def add_order_image(
+    order_id: int,
+    data: WorkshopOrderImageCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    image = WorkshopOrderImage(order_id=order_id, company_id=current_user.company_id, **data.model_dump())
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+    return image
+
+
+@router.delete("/orders/images/{image_id}")
+async def delete_order_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    image = db.query(WorkshopOrderImage).filter(WorkshopOrderImage.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Imagen no encontrada")
+    db.delete(image)
+    db.commit()
+    return {"message": "Imagen eliminada"}
+
+
+# ==================== WORKSHOP INVENTORY (Fase 3) ====================
+
+@router.get("/inventory", response_model=List[WorkshopInventoryResponse])
+async def get_workshop_inventory(
+    skip: int = 0, limit: int = 100,
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    low_stock: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    q = db.query(WorkshopInventory)
+    if current_user.role not in ['super_admin', 'admin']:
+        q = q.filter(WorkshopInventory.company_id == current_user.company_id)
+    if search:
+        q = q.filter(WorkshopInventory.name.ilike(f"%{search}%"))
+    if category:
+        q = q.filter(WorkshopInventory.category == category)
+    if low_stock:
+        q = q.filter(WorkshopInventory.current_stock <= WorkshopInventory.min_stock)
+    return q.order_by(WorkshopInventory.name).offset(skip).limit(limit).all()
+
+
+@router.post("/inventory", response_model=WorkshopInventoryResponse)
+async def create_workshop_inventory(
+    data: WorkshopInventoryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    item = WorkshopInventory(**data.model_dump(), company_id=current_user.company_id)
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.put("/inventory/{item_id}", response_model=WorkshopInventoryResponse)
+async def update_workshop_inventory(
+    item_id: int,
+    data: WorkshopInventoryUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    item = db.query(WorkshopInventory).filter(WorkshopInventory.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(item, key, value)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete("/inventory/{item_id}")
+async def delete_workshop_inventory(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    item = db.query(WorkshopInventory).filter(WorkshopInventory.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item no encontrado")
+    db.delete(item)
+    db.commit()
+    return {"message": "Item eliminado"}
+
+
+@router.get("/inventory/stats")
+async def get_inventory_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    q = db.query(WorkshopInventory)
+    if current_user.role not in ['super_admin', 'admin']:
+        q = q.filter(WorkshopInventory.company_id == current_user.company_id)
+    total = q.count()
+    low_stock = q.filter(WorkshopInventory.current_stock <= WorkshopInventory.min_stock).count()
+    total_value = db.query(func.sum(WorkshopInventory.current_stock * WorkshopInventory.unit_cost)).filter(
+        WorkshopInventory.company_id == current_user.company_id
+    ).scalar() or 0
+    categories = db.query(WorkshopInventory.category, func.count()).filter(
+        WorkshopInventory.company_id == current_user.company_id
+    ).group_by(WorkshopInventory.category).all()
+    return {
+        "total_items": total,
+        "low_stock_count": low_stock,
+        "total_value": float(total_value),
+        "categories": {c[0] or "Sin categoría": c[1] for c in categories}
+    }
+
+
+# ==================== WORKSHOP INVOICES (Fase 4) ====================
+
+@router.get("/invoices", response_model=List[WorkshopInvoiceResponse])
+async def get_invoices(
+    skip: int = 0, limit: int = 50,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    q = db.query(WorkshopInvoice)
+    if current_user.role not in ['super_admin', 'admin']:
+        q = q.filter(WorkshopInvoice.company_id == current_user.company_id)
+    if status:
+        q = q.filter(WorkshopInvoice.status == status)
+    return q.order_by(WorkshopInvoice.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@router.post("/invoices", response_model=WorkshopInvoiceResponse)
+async def create_invoice(
+    data: WorkshopInvoiceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    count = db.query(WorkshopInvoice).filter(WorkshopInvoice.company_id == current_user.company_id).count()
+    invoice_number = f"FT-{(count + 1):04d}"
+    invoice = WorkshopInvoice(
+        **data.model_dump(),
+        invoice_number=invoice_number,
+        company_id=current_user.company_id
+    )
+    db.add(invoice)
+    db.commit()
+    db.refresh(invoice)
+    return invoice
+
+
+@router.put("/invoices/{invoice_id}", response_model=WorkshopInvoiceResponse)
+async def update_invoice(
+    invoice_id: int,
+    data: WorkshopInvoiceUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    invoice = db.query(WorkshopInvoice).filter(WorkshopInvoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Factura no encontrada")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(invoice, key, value)
+    db.commit()
+    db.refresh(invoice)
+    return invoice
+
+
+@router.delete("/invoices/{invoice_id}")
+async def delete_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    invoice = db.query(WorkshopInvoice).filter(WorkshopInvoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Factura no encontrada")
+    db.delete(invoice)
+    db.commit()
+    return {"message": "Factura eliminada"}
+
+
+@router.get("/invoices/stats")
+async def get_invoice_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    q = db.query(WorkshopInvoice)
+    if current_user.role not in ['super_admin', 'admin']:
+        q = q.filter(WorkshopInvoice.company_id == current_user.company_id)
+    total_invoiced = q.filter(WorkshopInvoice.status != 'cancelled').count()
+    total_paid = q.filter(WorkshopInvoice.status == 'paid').count()
+    total_pending = q.filter(WorkshopInvoice.status.in_(['pending', 'partially_paid'])).count()
+    total_amount = db.query(func.sum(WorkshopInvoice.total)).filter(WorkshopInvoice.status != 'cancelled').scalar() or 0
+    total_paid_amount = db.query(func.sum(WorkshopInvoice.paid_amount)).scalar() or 0
+    return {
+        "total_invoiced": total_invoiced,
+        "total_paid": total_paid,
+        "total_pending": total_pending,
+        "total_amount": float(total_amount),
+        "total_paid_amount": float(total_paid_amount),
+        "pending_amount": float(total_amount) - float(total_paid_amount)
+    }
+
+
+@router.get("/daily-report")
+async def get_daily_report(
+    report_date: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if report_date:
+        target = datetime.strptime(report_date, "%Y-%m-%d").date()
+    else:
+        target = date.today()
+    start = datetime.combine(target, datetime.min.time())
+    end = datetime.combine(target, datetime.max.time())
+    q = db.query(WorkshopOrder).filter(WorkshopOrder.company_id == current_user.company_id)
+    worked_today = q.filter(WorkshopOrder.exit_datetime.between(start, end)).all()
+    waiting = q.filter(WorkshopOrder.status.in_(['completed', 'waiting_parts'])).all()
+    ready_not_picked = q.filter(WorkshopOrder.status == 'completed', WorkshopOrder.exit_datetime.is_(None)).all()
+    return {
+        "date": target.isoformat(),
+        "worked_today": [{"id": o.id, "vehicle": f"{o.vehicle.brand} {o.vehicle.plate_number}" if o.vehicle else "N/A", "total_cost": o.total_cost} for o in worked_today],
+        "waiting_count": len(waiting),
+        "ready_not_picked": [{"id": o.id, "vehicle": f"{o.vehicle.brand} {o.vehicle.plate_number}" if o.vehicle else "N/A"} for o in ready_not_picked],
+        "worked_revenue": sum(o.total_cost or 0 for o in worked_today)
+    }
 
 
 @router.get("/", response_model=List[WorkshopOrderResponse])

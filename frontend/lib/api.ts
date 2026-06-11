@@ -270,6 +270,33 @@ export const workshopAPI = {
   createMechanic: (data: any) => api.post('/workshop/mechanics', data),
   updateMechanic: (id: number, data: any) => api.put(`/workshop/mechanics/${id}`, data),
   deleteMechanic: (id: number) => api.delete(`/workshop/mechanics/${id}`),
+  getInspections: (orderId: number) => api.get(`/workshop/inspections/${orderId}`),
+  createInspection: (data: any) => api.post('/workshop/inspections', data),
+  addInspectionImage: (inspectionId: number, data: any) => api.post(`/workshop/inspections/${inspectionId}/images`, data),
+  deleteInspection: (id: number) => api.delete(`/workshop/inspections/${id}`),
+  getOrderImages: (orderId: number) => api.get(`/workshop/orders/${orderId}/images`),
+  addOrderImage: (orderId: number, data: any) => api.post(`/workshop/orders/${orderId}/images`, data),
+  deleteOrderImage: (imageId: number) => api.delete(`/workshop/orders/images/${imageId}`),
+  getInventory: (params?: { search?: string; category?: string; low_stock?: boolean }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.category) searchParams.append('category', params.category);
+    if (params?.low_stock) searchParams.append('low_stock', 'true');
+    const q = searchParams.toString();
+    return api.get('/workshop/inventory' + (q ? `?${q}` : ''));
+  },
+  createInventoryItem: (data: any) => api.post('/workshop/inventory', data),
+  updateInventoryItem: (id: number, data: any) => api.put(`/workshop/inventory/${id}`, data),
+  deleteInventoryItem: (id: number) => api.delete(`/workshop/inventory/${id}`),
+  getInventoryStats: () => api.get('/workshop/inventory/stats'),
+  getInvoices: (status?: string) => {
+    const q = status ? `?status=${status}` : '';
+    return api.get('/workshop/invoices' + q);
+  },
+  createInvoice: (data: any) => api.post('/workshop/invoices', data),
+  updateInvoice: (id: number, data: any) => api.put(`/workshop/invoices/${id}`, data),
+  deleteInvoice: (id: number) => api.delete(`/workshop/invoices/${id}`),
+  getInvoiceStats: () => api.get('/workshop/invoices/stats'),
 };
 
 export const reportsAPI = {

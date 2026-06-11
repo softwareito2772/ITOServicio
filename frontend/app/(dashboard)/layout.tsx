@@ -29,6 +29,7 @@ import {
   Clock,
   Building2,
   Car,
+  Receipt,
 } from 'lucide-react';
 import { dashboardAPI } from '@/lib/api';
 
@@ -43,6 +44,8 @@ const navigation = [
   { name: 'Reparaciones', href: '/repairs', icon: Hammer, module: 'reparaciones' },
   { name: 'Taller', href: '/workshop', icon: Car, module: 'taller' },
   { name: 'Mecánicos', href: '/workshop/mechanics', icon: Wrench, module: 'taller' },
+  { name: 'Inventario Taller', href: '/workshop/inventory', icon: Package, module: 'taller' },
+  { name: 'Facturación', href: '/workshop/invoices', icon: Receipt, module: 'taller' },
   { name: 'Reporte Taller', href: '/workshop/report', icon: BarChart3, module: 'taller' },
   { name: 'Garantías', href: '/warranties', icon: Shield, module: 'garantias' },
   { name: 'Reportes', href: '/reports', icon: BarChart3, module: '' },

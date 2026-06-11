@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Loader2, Save, CheckCircle, X, Download, Clock, Wrench, Car, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, CheckCircle, X, Download, Clock, Wrench, Car, ChevronDown, ChevronRight, Plus, Trash2, Eye, Image, Camera } from 'lucide-react';
 import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pendiente' },
@@ -25,6 +26,7 @@ const CHECKLIST_STATUS_OPTIONS = ['ok', 'reemplazar', 'limpiar', 'ajustar', 'rep
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
+  const router = useRouter();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,6 +41,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [orderImages, setOrderImages] = useState<any[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => { loadOrder(); }, [id]);
 
@@ -57,8 +61,42 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         exit_km: res.data.exit_km?.toString() || '',
         picked_up_by: res.data.picked_up_by || '',
       });
+      const imagesRes = await workshopAPI.getOrderImages(parseInt(id));
+      setOrderImages(imagesRes.data);
     } catch { toast.error('Error al cargar orden'); }
     finally { setLoading(false); }
+  };
+
+  const handleUploadImage = async (imageType: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploadingImage(true);
+      try {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            await workshopAPI.addOrderImage(parseInt(id), { image_url: reader.result as string, image_type: imageType, description: '' });
+            toast.success('Imagen subida');
+            const imagesRes = await workshopAPI.getOrderImages(parseInt(id));
+            setOrderImages(imagesRes.data);
+          } catch (err: any) {
+            toast.error(err.response?.data?.detail || 'Error al subir');
+          } finally { setUploadingImage(false); }
+        };
+        reader.readAsDataURL(file);
+      } catch { setUploadingImage(false); }
+    };
+    input.click();
+  };
+
+  const handleDeleteImage = async (imageId: number) => {
+    if (!confirm('¿Eliminar imagen?')) return;
+    try { await workshopAPI.deleteOrderImage(imageId); toast.success('Eliminada'); const imagesRes = await workshopAPI.getOrderImages(parseInt(id)); setOrderImages(imagesRes.data); }
+    catch { toast.error('Error'); }
   };
 
   const handleUpdate = async () => {
@@ -204,6 +242,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             {generatingPDF ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
             PDF
           </button>
+          <Link href={`/workshop/inspection?id=${id}`} className="btn-outline flex items-center gap-2 text-sm">
+            <Eye size={16} /> Inspección
+          </Link>
           {!['cancelled', 'delivered'].includes(order.status) && (
             <button onClick={() => setShowDeleteModal(true)} className="flex items-center gap-2 text-sm px-3 py-1 rounded-lg border border-danger/30 text-danger hover:bg-danger/10 transition">
               <Trash2 size={16} /> Cancelar
@@ -376,6 +417,36 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     {savingChecklist ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />} Guardar
                   </button>
                 </div>
+              </div>
+            )}
+          </div>
+
+          <div className="card p-4 sm:p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-gray-800">Imágenes del Vehículo</h2>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button onClick={() => handleUploadImage('arrival')} disabled={uploadingImage} className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm font-medium hover:bg-primary/20 transition">
+                {uploadingImage ? <Loader2 className="animate-spin" size={14} /> : <Camera size={14} />} Llegada
+              </button>
+              <button onClick={() => handleUploadImage('progress')} disabled={uploadingImage} className="flex items-center gap-1 px-3 py-1.5 bg-warning/20 text-warningDark rounded-lg text-sm font-medium hover:bg-warning/30 transition">
+                {uploadingImage ? <Loader2 className="animate-spin" size={14} /> : <Camera size={14} />} En Proceso
+              </button>
+              <button onClick={() => handleUploadImage('departure')} disabled={uploadingImage} className="flex items-center gap-1 px-3 py-1.5 bg-success/10 text-success rounded-lg text-sm font-medium hover:bg-success/20 transition">
+                {uploadingImage ? <Loader2 className="animate-spin" size={14} /> : <Camera size={14} />} Salida
+              </button>
+            </div>
+            {orderImages.length === 0 ? (
+              <p className="text-sm text-gray-500">Sin imágenes. Sube fotos de llegada, proceso o salida.</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {orderImages.map((img: any) => (
+                  <div key={img.id} className="relative group">
+                    <img src={img.image_url} alt={img.image_type} className="w-full h-24 object-cover rounded-lg" />
+                    <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-xs font-medium bg-black/60 text-white">{img.image_type === 'arrival' ? 'Llegada' : img.image_type === 'departure' ? 'Salida' : 'Proceso'}</div>
+                    <button onClick={() => handleDeleteImage(img.id)} className="absolute top-1 right-1 p-1 bg-danger text-white rounded opacity-0 group-hover:opacity-100 transition"><Trash2 size={12} /></button>
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -752,3 +752,152 @@ class WorkshopMechanicResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class WorkshopInspectionCreate(BaseModel):
+    order_id: int
+    vehicle_id: int
+    zone: str
+    damage_type: str
+    severity: str = "leve"
+    notes: Optional[str] = None
+    inspected_by: Optional[str] = None
+
+
+class WorkshopInspectionResponse(BaseModel):
+    id: int
+    order_id: int
+    vehicle_id: int
+    zone: str
+    damage_type: str
+    severity: str
+    notes: Optional[str] = None
+    inspected_by: Optional[str] = None
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    images: List['WorkshopInspectionImageResponse'] = []
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopInspectionImageCreate(BaseModel):
+    image_url: str
+    description: Optional[str] = None
+
+
+class WorkshopInspectionImageResponse(BaseModel):
+    id: int
+    inspection_id: int
+    image_url: str
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopOrderImageCreate(BaseModel):
+    image_url: str
+    image_type: str  # arrival, departure, progress
+    description: Optional[str] = None
+
+
+class WorkshopOrderImageResponse(BaseModel):
+    id: int
+    order_id: int
+    image_url: str
+    image_type: str
+    description: Optional[str] = None
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopInventoryCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    sku: Optional[str] = None
+    category: Optional[str] = None
+    current_stock: int = 0
+    min_stock: int = 5
+    unit_cost: float = 0
+    unit_price: float = 0
+    supplier: Optional[str] = None
+
+
+class WorkshopInventoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    sku: Optional[str] = None
+    category: Optional[str] = None
+    current_stock: Optional[int] = None
+    min_stock: Optional[int] = None
+    unit_cost: Optional[float] = None
+    unit_price: Optional[float] = None
+    supplier: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class WorkshopInventoryResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    sku: Optional[str] = None
+    category: Optional[str] = None
+    current_stock: int
+    min_stock: int
+    unit_cost: float
+    unit_price: float
+    supplier: Optional[str] = None
+    is_active: bool
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopInvoiceCreate(BaseModel):
+    order_id: int
+    client_id: Optional[int] = None
+    subtotal: float = 0
+    tax: float = 0
+    discount: float = 0
+    total: float = 0
+    notes: Optional[str] = None
+
+
+class WorkshopInvoiceUpdate(BaseModel):
+    status: Optional[str] = None
+    paid_amount: Optional[float] = None
+    payment_method: Optional[str] = None
+    payment_date: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class WorkshopInvoiceResponse(BaseModel):
+    id: int
+    order_id: int
+    client_id: Optional[int] = None
+    invoice_number: str
+    subtotal: float
+    tax: float
+    discount: float
+    total: float
+    status: str
+    paid_amount: float
+    payment_method: Optional[str] = None
+    payment_date: Optional[datetime] = None
+    notes: Optional[str] = None
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    order: Optional[WorkshopOrderResponse] = None
+    client: Optional[ClientResponse] = None
+
+    class Config:
+        from_attributes = True
