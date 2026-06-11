@@ -1046,6 +1046,31 @@ async def add_parts_to_order(
     return {"message": f"{len(parts)} pieza(s) agregada(s)"}
 
 
+@router.delete("/parts/{part_id}")
+async def delete_part_used(
+    part_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    part = db.query(WorkshopPartsUsed).filter(WorkshopPartsUsed.id == part_id).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Pieza no encontrada")
+
+    if part.workshop_inventory_id:
+        inv = db.query(WorkshopInventory).filter(WorkshopInventory.id == part.workshop_inventory_id).first()
+        if inv:
+            inv.current_stock += part.quantity
+
+    order = db.query(WorkshopOrder).filter(WorkshopOrder.id == part.order_id).first()
+    if order:
+        order.cost_parts = max(0, (order.cost_parts or 0) - (part.unit_price * part.quantity))
+        order.total_cost = (order.cost_labor or 0) + order.cost_parts
+
+    db.delete(part)
+    db.commit()
+    return {"message": "Pieza eliminada. Stock devuelto."}
+
+
 @router.post("/{order_id}/checklist")
 async def add_checklist_items(
     order_id: int,

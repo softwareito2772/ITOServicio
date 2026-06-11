@@ -249,6 +249,7 @@ export const workshopAPI = {
   createOrder: (data: any) => api.post('/workshop/', data),
   updateOrder: (id: number, data: any) => api.put(`/workshop/${id}`, data),
   addPartsToOrder: (orderId: number, parts: any[]) => api.post(`/workshop/${orderId}/parts`, parts),
+  deletePartUsed: (partId: number) => api.delete(`/workshop/parts/${partId}`),
   deleteOrder: (id: number, reason: string) => api.delete(`/workshop/${id}`, { params: { cancel_reason: reason } }),
   getStats: () => api.get('/workshop/summary/stats'),
   getVehicles: (search?: string, type?: string) => {

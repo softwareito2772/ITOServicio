@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Date, Text, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime, date
 import enum
 from .database import Base
@@ -466,6 +467,13 @@ class WorkshopPartsUsed(Base):
 
     order = relationship("WorkshopOrder", back_populates="parts_used")
     product = relationship("Product")
+    _inventory_item = relationship("WorkshopInventory")
+
+    @hybrid_property
+    def inventory_item_name(self):
+        if self._inventory_item:
+            return self._inventory_item.name
+        return None
 
 
 class WorkshopInspection(Base):

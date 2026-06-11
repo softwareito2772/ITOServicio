@@ -620,11 +620,18 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                       <div className="flex items-center gap-2">
                         <Package size={14} className="text-success" />
                         <div>
-                          <span className="font-medium">{p.product?.name || p.custom_name || `Inventario #${p.workshop_inventory_id}`}</span>
+                          <span className="font-medium">{p.product?.name || p.inventory_item_name || p.custom_name || `#${p.id}`}</span>
                           <span className="text-gray-400 ml-2">x{p.quantity}</span>
                         </div>
                       </div>
-                      <span className="font-medium">{formatCurrency(p.unit_price * p.quantity)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{formatCurrency(p.unit_price * p.quantity)}</span>
+                        <button onClick={async () => {
+                          if (!confirm('¿Eliminar esta pieza? Se devolverá el stock.')) return;
+                          try { await workshopAPI.deletePartUsed(p.id); toast.success('Pieza eliminada'); loadOrder(); }
+                          catch { toast.error('Error al eliminar'); }
+                        }} className="text-danger hover:text-danger/80 p-1"><Trash2 size={12} /></button>
+                      </div>
                     </div>
                   ))}
                 </div>
