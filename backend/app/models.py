@@ -466,7 +466,6 @@ class WorkshopPartsUsed(Base):
 
     order = relationship("WorkshopOrder", back_populates="parts_used")
     product = relationship("Product")
-    inventory_item = relationship("WorkshopInventory")
 
 
 class WorkshopInspection(Base):

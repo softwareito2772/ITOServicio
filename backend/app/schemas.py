@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List, Any
+from typing import Optional, List
 from datetime import date, datetime
 
 
@@ -618,7 +618,7 @@ class WorkshopPartsUsedResponse(BaseModel):
     unit_price: float
     created_at: Optional[datetime] = None
     product: Optional[ProductResponse] = None
-    inventory_item: Optional[Any] = None
+    inventory_item_name: Optional[str] = None
 
     class Config:
         from_attributes = True
