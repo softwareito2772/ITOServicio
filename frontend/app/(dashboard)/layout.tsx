@@ -31,7 +31,7 @@ import {
   Car,
   Receipt,
 } from 'lucide-react';
-import { dashboardAPI } from '@/lib/api';
+import { dashboardAPI, companiesAPI } from '@/lib/api';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: '' },
@@ -48,7 +48,7 @@ const navigation = [
   { name: 'Facturación', href: '/workshop/invoices', icon: Receipt, module: 'taller' },
   { name: 'Reporte Taller', href: '/workshop/report', icon: BarChart3, module: 'taller' },
   { name: 'Garantías', href: '/warranties', icon: Shield, module: 'garantias' },
-  { name: 'Reportes', href: '/reports', icon: BarChart3, module: '' },
+  { name: 'Reportes', href: '/reports', icon: BarChart3, module: 'reportes' },
   { name: 'Configuración', href: '/settings', icon: Settings, module: '' },
 ];
 
@@ -127,6 +127,22 @@ export default function DashboardLayout({
       }
       if (company.secondary_color) {
         document.documentElement.style.setProperty('--secondary', company.secondary_color);
+      }
+    }
+
+    const token = localStorage.getItem('token');
+    if (token) {
+      const u = userStr ? JSON.parse(userStr) : null;
+      if (u && u.company_id && u.role !== 'super_admin') {
+        companiesAPI.getMyCompany().then(res => {
+          const data = res.data;
+          if (data && data.modules) {
+            setCompanyModules(data.modules);
+            const stored = companyStr ? JSON.parse(companyStr) : {};
+            stored.modules = data.modules;
+            localStorage.setItem('company', JSON.stringify(stored));
+          }
+        }).catch(() => {});
       }
     }
   }, [router]);

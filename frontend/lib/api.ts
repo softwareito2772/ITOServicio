@@ -217,6 +217,7 @@ export const dashboardAPI = {
 export const companiesAPI = {
   getAll: () => api.get('/companies/'),
   getById: (id: number) => api.get(`/companies/${id}`),
+  getMyCompany: () => api.get('/companies/my/company'),
   create: (data: any) => api.post('/companies/', data),
   update: (id: number, data: any) => api.put(`/companies/${id}`, data),
   updateModules: (id: number, modules: string[]) => api.put(`/companies/${id}/modules`, { modules }),
