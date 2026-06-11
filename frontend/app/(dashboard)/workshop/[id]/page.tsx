@@ -43,6 +43,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [deleting, setDeleting] = useState(false);
   const [orderImages, setOrderImages] = useState<any[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [inspections, setInspections] = useState<any[]>([]);
 
   useEffect(() => { loadOrder(); }, [id]);
 
@@ -63,6 +64,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       });
       const imagesRes = await workshopAPI.getOrderImages(parseInt(id));
       setOrderImages(imagesRes.data);
+      const inspectionsRes = await workshopAPI.getInspections(parseInt(id));
+      setInspections(inspectionsRes.data);
     } catch { toast.error('Error al cargar orden'); }
     finally { setLoading(false); }
   };
@@ -447,6 +450,50 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <button onClick={() => handleDeleteImage(img.id)} className="absolute top-1 right-1 p-1 bg-danger text-white rounded opacity-0 group-hover:opacity-100 transition"><Trash2 size={12} /></button>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          <div className="card p-4 sm:p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-gray-800">Inspección Visual</h2>
+              <Link href={`/workshop/inspection?id=${id}`} className="text-sm text-primary hover:underline flex items-center gap-1">
+                {inspections.length > 0 ? <><Eye size={14} /> Ver inspección</> : <><Plus size={14} /> Realizar inspección</>}
+              </Link>
+            </div>
+            {inspections.length === 0 ? (
+              <p className="text-sm text-gray-500">Sin inspección. Haz clic en "Realizar inspección" para comenzar.</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                  <div className="p-2 bg-success/10 rounded-lg">
+                    <p className="font-bold text-success">{inspections.filter(i => i.notes === '__OK__').length}</p>
+                    <p className="text-xs text-gray-500">OK</p>
+                  </div>
+                  <div className="p-2 bg-danger/10 rounded-lg">
+                    <p className="font-bold text-danger">{inspections.filter(i => i.notes !== '__OK__').length}</p>
+                    <p className="text-xs text-gray-500">Daños</p>
+                  </div>
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <p className="font-bold text-gray-600">{inspections.filter(i => i.severity).reduce((acc: number, i: any) => { const sev = i.severity; return acc + (sev === 'alto' ? 3 : sev === 'medio' ? 2 : 1); }, 0)}</p>
+                    <p className="text-xs text-gray-500">Gravedad</p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  {inspections.filter(i => i.notes !== '__OK__').slice(0, 5).map((insp: any) => (
+                    <div key={insp.id} className="flex items-center gap-2 text-xs p-1.5 bg-gray-50 rounded">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${insp.damage_type === 'golpe' ? 'bg-danger' : insp.damage_type === 'rayon' ? 'bg-warning' : insp.damage_type === 'abolladura' ? 'bg-orange-400' : 'bg-gray-400'}`} />
+                      <span className="font-medium capitalize">{insp.zone?.replace(/_/g, ' ')}</span>
+                      <span className="text-gray-400">·</span>
+                      <span className="capitalize">{insp.damage_type || 'N/A'}</span>
+                      <span className="text-gray-400">·</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${insp.severity === 'alto' ? 'bg-danger/20 text-danger' : insp.severity === 'medio' ? 'bg-warning/20 text-warningDark' : 'bg-gray-200 text-gray-600'}`}>{insp.severity || 'bajo'}</span>
+                    </div>
+                  ))}
+                  {inspections.filter(i => i.notes !== '__OK__').length > 5 && (
+                    <p className="text-xs text-gray-400 text-center">+{inspections.filter(i => i.notes !== '__OK__').length - 5} más...</p>
+                  )}
+                </div>
               </div>
             )}
           </div>
