@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import logging
 from sqlalchemy import text
 from .config import settings
@@ -9,27 +10,37 @@ from .routers import auth, users, clients, categories, products, inventory, sale
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-Base.metadata.create_all(bind=engine)
-
 def run_migrations():
-    migrations = [
-        ("ALTER TABLE workshop_parts_used ADD COLUMN IF NOT EXISTS workshop_inventory_id INTEGER",),
-        ("ALTER TABLE workshop_parts_used ADD COLUMN IF NOT EXISTS custom_name VARCHAR(255)",),
+    cols = [
+        ("workshop_parts_used", "workshop_inventory_id", "INTEGER"),
+        ("workshop_parts_used", "custom_name", "VARCHAR(255)"),
     ]
     with engine.connect() as conn:
-        for m in migrations:
+        for table, col, ctype in cols:
             try:
-                conn.execute(text(m[0]))
-                conn.commit()
+                result = conn.execute(text(
+                    f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}' AND column_name='{col}'"
+                ))
+                if not result.fetchone():
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ctype}"))
+                    conn.commit()
+                    logger.info(f"Migration: added {table}.{col}")
+                else:
+                    logger.info(f"Migration: {table}.{col} already exists")
             except Exception as e:
-                logger.info(f"Migration skip: {e}")
+                logger.error(f"Migration error {table}.{col}: {e}")
 
-run_migrations()
+@asynccontextmanager
+async def lifespan(app):
+    Base.metadata.create_all(bind=engine)
+    run_migrations()
+    yield
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="API para el sistema de servicios ITO",
-    version="3.0.0"
+    version="3.1.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
