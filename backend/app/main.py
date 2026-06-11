@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from sqlalchemy import text
 from .config import settings
 from .database import engine, Base
 from .routers import auth, users, clients, categories, products, inventory, sales, equipment, maintenance, repairs, warranties, reports, dashboard, arrival_statuses, companies, workshop
@@ -9,6 +10,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 Base.metadata.create_all(bind=engine)
+
+def run_migrations():
+    migrations = [
+        ("ALTER TABLE workshop_parts_used ADD COLUMN IF NOT EXISTS workshop_inventory_id INTEGER",),
+        ("ALTER TABLE workshop_parts_used ADD COLUMN IF NOT EXISTS custom_name VARCHAR(255)",),
+    ]
+    with engine.connect() as conn:
+        for m in migrations:
+            try:
+                conn.execute(text(m[0]))
+                conn.commit()
+            except Exception as e:
+                logger.info(f"Migration skip: {e}")
+
+run_migrations()
 
 app = FastAPI(
     title=settings.APP_NAME,
