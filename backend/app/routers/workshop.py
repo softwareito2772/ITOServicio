@@ -344,6 +344,94 @@ async def delete_inspection(
     return {"message": "Inspección eliminada"}
 
 
+# ==================== INSPECTION PDF ====================
+
+@router.get("/inspections/{order_id}/pdf")
+async def get_inspection_pdf(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    order = db.query(WorkshopOrder).filter(WorkshopOrder.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+
+    inspections = db.query(WorkshopInspection).filter(WorkshopInspection.order_id == order_id).all()
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Title'], fontSize=16, spaceAfter=6)
+    subtitle_style = ParagraphStyle('Sub', parent=styles['Normal'], fontSize=10, textColor=colors.grey, spaceAfter=12)
+    header_style = ParagraphStyle('Header', parent=styles['Heading2'], fontSize=12, spaceAfter=6, spaceBefore=12)
+    normal_style = ParagraphStyle('NormalCustom', parent=styles['Normal'], fontSize=9, leading=12)
+
+    elements.append(Paragraph("Reporte de Inspección Vehicular", title_style))
+    elements.append(Paragraph(f"Orden #{order.id} | {order.vehicle.brand if order.vehicle else ''} {order.vehicle.model if order.vehicle else ''} | Placa: {order.vehicle.plate_number if order.vehicle else ''}", subtitle_style))
+    elements.append(Paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", subtitle_style))
+    elements.append(Spacer(1, 12))
+
+    if inspections:
+        elements.append(Paragraph("Daños Registrados", header_style))
+
+        damage_data = [['Zona', 'Tipo de Daño', 'Severidad', 'Notas', 'Inspectado por']]
+        for insp in inspections:
+            zone_labels = {
+                'front_bumper': 'Defensa Del.', 'hood': 'Capó', 'windshield': 'Parabrisas',
+                'left_headlight': 'Faros Izq.', 'right_headlight': 'Faros Der.',
+                'rear_bumper': 'Defensa Tras.', 'trunk': 'Maletero', 'rear_window': 'Vidrio Tras.',
+                'left_taillight': 'Luces Tras. Izq.', 'right_taillight': 'Luces Tras. Der.',
+                'left_front_door': 'Puerta Del. Izq.', 'right_front_door': 'Puerta Del. Der.',
+                'left_rear_door': 'Puerta Tras. Izq.', 'right_rear_door': 'Puerta Tras. Der.',
+                'left_front_tire': 'Llanta Del. Izq.', 'right_front_tire': 'Llanta Del. Der.',
+                'left_rear_tire': 'Llanta Tras. Izq.', 'right_rear_tire': 'Llanta Tras. Der.',
+                'left_mirror': 'Espejo Izq.', 'right_mirror': 'Espejo Der.',
+                'left_fender': 'Guardabrisas Izq.', 'right_fender': 'Guardabrisas Der.',
+                'grille': 'Parrilla', 'license_plate_rear': 'Placa Tras.',
+                'left_rear_fender': 'Guarda Tras. Izq.', 'right_rear_fender': 'Guarda Tras. Der.',
+            }
+            damage_data.append([
+                zone_labels.get(insp.zone, insp.zone),
+                insp.damage_type.replace('_', ' ').title(),
+                insp.severity.title(),
+                insp.notes or '-',
+                insp.inspected_by or '-',
+            ])
+
+        damage_table = Table(damage_data, colWidths=[1.3*inch, 1.1*inch, 0.9*inch, 1.8*inch, 1.1*inch])
+        damage_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(damage_table)
+    else:
+        elements.append(Paragraph("No se registraron daños. Todas las zonas están en buen estado.", header_style))
+
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("Firma del inspector: ________________________", normal_style))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=inspeccion-orden-{order_id}.pdf"})
+
+
 # ==================== ORDER IMAGES (Fase 2) ====================
 
 @router.get("/orders/{order_id}/images", response_model=List[WorkshopOrderImageResponse])

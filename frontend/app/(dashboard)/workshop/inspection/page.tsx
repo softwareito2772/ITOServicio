@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { ArrowLeft, Loader2, Trash2, X, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, X, CheckCircle, Download, ShieldCheck, AlertTriangle, ClipboardList } from 'lucide-react';
 import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -438,6 +438,8 @@ function InspectionContent() {
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ damage_type: 'golpe', severity: 'leve', notes: '', inspected_by: '' });
+  const [okZones, setOkZones] = useState<Set<string>>(new Set());
+  const [inspectionData, setInspectionData] = useState({ entry_km: '', tire_pressure_fl: '', tire_pressure_fr: '', tire_pressure_rl: '', tire_pressure_rr: '', oil_level: 'bueno', coolant_level: 'bueno', brake_fluid: 'bueno', transmission_fluid: 'bueno', battery_status: 'bueno', belt_condition: 'bueno', general_notes: '' });
 
   useEffect(() => { if (id) loadData(); }, [id]);
 
@@ -449,6 +451,9 @@ function InspectionContent() {
       ]);
       setOrder(orderRes.data);
       setInspections(inspRes.data);
+      const okSet = new Set<string>();
+      inspRes.data.forEach((i: any) => { if (i.notes === '__OK__') okSet.add(i.zone); });
+      setOkZones(okSet);
     } catch { toast.error('Error al cargar'); }
     finally { setLoading(false); }
   };
@@ -462,31 +467,50 @@ function InspectionContent() {
   };
 
   const getDamageColor = (type: string) => DAMAGE_TYPES.find(d => d.value === type)?.color || '#6b7280';
-  const getZoneDamage = (zoneId: string) => inspections.find(i => i.zone === zoneId);
+  const getZoneStatus = (zoneId: string) => {
+    const insp = inspections.find(i => i.zone === zoneId);
+    if (!insp) return 'none';
+    if (insp.notes === '__OK__') return 'ok';
+    return 'damage';
+  };
 
   const handleZoneClick = (zoneId: string) => {
-    const existing = getZoneDamage(zoneId);
+    const status = getZoneStatus(zoneId);
+    const existing = inspections.find(i => i.zone === zoneId);
     setSelectedZone(zoneId);
-    setFormData(existing
-      ? { damage_type: existing.damage_type, severity: existing.severity, notes: existing.notes || '', inspected_by: existing.inspected_by || '' }
-      : { damage_type: 'golpe', severity: 'leve', notes: '', inspected_by: '' }
-    );
+    if (status === 'damage' && existing) {
+      setFormData({ damage_type: existing.damage_type, severity: existing.severity, notes: existing.notes || '', inspected_by: existing.inspected_by || '' });
+    } else {
+      setFormData({ damage_type: 'golpe', severity: 'leve', notes: '', inspected_by: '' });
+    }
     setShowForm(true);
+  };
+
+  const handleMarkOK = async (zoneId: string) => {
+    try {
+      const existing = inspections.find(i => i.zone === zoneId);
+      if (existing) await workshopAPI.deleteInspection(existing.id);
+      await workshopAPI.createInspection({
+        order_id: parseInt(id), vehicle_id: order.vehicle_id, zone: zoneId,
+        damage_type: 'ok', severity: 'leve', notes: '__OK__', inspected_by: 'Sistema',
+      });
+      setOkZones(prev => new Set(prev).add(zoneId));
+      toast.success('Zona marcada como OK');
+      loadData();
+    } catch { toast.error('Error'); }
   };
 
   const handleSave = async () => {
     if (!selectedZone) return;
     setSaving(true);
     try {
-      const existing = getZoneDamage(selectedZone);
+      const existing = inspections.find(i => i.zone === selectedZone && i.notes !== '__OK__');
       if (existing) await workshopAPI.deleteInspection(existing.id);
       await workshopAPI.createInspection({
-        order_id: parseInt(id),
-        vehicle_id: order.vehicle_id,
-        zone: selectedZone,
-        ...formData,
+        order_id: parseInt(id), vehicle_id: order.vehicle_id, zone: selectedZone, ...formData,
       });
-      toast.success('Zona guardada');
+      okZones.delete(selectedZone);
+      toast.success('Daño registrado');
       setShowForm(false);
       setSelectedZone(null);
       loadData();
@@ -497,15 +521,17 @@ function InspectionContent() {
 
   const handleDelete = async (inspectionId: number) => {
     if (!confirm('¿Eliminar esta inspección?')) return;
-    try {
-      await workshopAPI.deleteInspection(inspectionId);
-      toast.success('Eliminada');
-      loadData();
-    } catch { toast.error('Error al eliminar'); }
+    try { await workshopAPI.deleteInspection(inspectionId); toast.success('Eliminada'); loadData(); }
+    catch { toast.error('Error al eliminar'); }
   };
 
+  const totalZones = Object.values(ZONES).flat().length;
+  const damagedCount = inspections.filter(i => i.notes !== '__OK__').length;
+  const okCount = inspections.filter(i => i.notes === '__OK__').length;
+  const unmarkedCount = totalZones - damagedCount - okCount;
+
   const currentZones = ZONES[activeView] || [];
-  const viewInspections = inspections.filter(i => currentZones.some(z => z.id === i.zone));
+  const viewInspections = inspections.filter(i => currentZones.some(z => z.id === i.zone) && i.notes !== '__OK__');
   const ViewComponent = VIEW_COMPONENTS[activeView];
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={32} /></div>;
@@ -513,11 +539,32 @@ function InspectionContent() {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      <div className="flex items-center gap-4">
-        <Link href={`/workshop/${id}`} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft size={20} /></Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Inspección Visual</h1>
-          <p className="text-gray-500">Orden #{order.id} - {order.vehicle?.plate_number} {order.vehicle?.brand} {order.vehicle?.model}</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link href={`/workshop/${id}`} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft size={20} /></Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Inspección Visual</h1>
+            <p className="text-gray-500">Orden #{order.id} - {order.vehicle?.plate_number} {order.vehicle?.brand} {order.vehicle?.model}</p>
+          </div>
+        </div>
+        <a href={workshopAPI.getInspectionPDF(parseInt(id))} target="_blank" rel="noopener noreferrer"
+          className="btn-outline flex items-center gap-2 text-sm">
+          <Download size={16} /> Exportar PDF
+        </a>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="card p-3 text-center bg-success/5 border border-success/20">
+          <p className="text-xl font-bold text-success">{okCount}</p>
+          <p className="text-xs text-gray-500 flex items-center justify-center gap-1"><ShieldCheck size={12} /> OK</p>
+        </div>
+        <div className="card p-3 text-center bg-danger/5 border border-danger/20">
+          <p className="text-xl font-bold text-danger">{damagedCount}</p>
+          <p className="text-xs text-gray-500 flex items-center justify-center gap-1"><AlertTriangle size={12} /> Daños</p>
+        </div>
+        <div className="card p-3 text-center bg-gray-50 border border-gray-200">
+          <p className="text-xl font-bold text-gray-400">{unmarkedCount}</p>
+          <p className="text-xs text-gray-500 flex items-center justify-center gap-1"><ClipboardList size={12} /> Pendientes</p>
         </div>
       </div>
 
@@ -537,27 +584,28 @@ function InspectionContent() {
               <div className="relative" style={{ width: '100%', maxWidth: '400px' }}>
                 <ViewComponent />
                 {currentZones.map(zone => {
-                  const damage = getZoneDamage(zone.id);
+                  const status = getZoneStatus(zone.id);
                   const left = `${(zone.cx / 400) * 100}%`;
                   const top = `${(zone.cy / 380) * 100}%`;
                   return (
                     <div key={zone.id} className="absolute" style={{ left, top, transform: 'translate(-50%, -50%)' }}>
-                      {damage ? (
-                        <button onClick={() => handleZoneClick(zone.id)}
-                          className="relative group cursor-pointer"
-                          title={zone.label}>
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-transform hover:scale-110"
-                            style={{ backgroundColor: getDamageColor(damage.damage_type) }}>
-                            <span className="text-white text-xs font-bold">!</span>
+                      {status === 'ok' ? (
+                        <button onClick={() => handleZoneClick(zone.id)} className="relative group cursor-pointer" title={`${zone.label} - OK`}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center shadow-lg border-2 border-white bg-success transition-transform hover:scale-110">
+                            <CheckCircle size={14} className="text-white" />
                           </div>
-                          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                            {zone.label}
+                        </button>
+                      ) : status === 'damage' ? (
+                        <button onClick={() => handleZoneClick(zone.id)} className="relative group cursor-pointer" title={zone.label}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-transform hover:scale-110"
+                            style={{ backgroundColor: getDamageColor(inspections.find(i => i.zone === zone.id)?.damage_type || '') }}>
+                            <span className="text-white text-xs font-bold">!</span>
                           </div>
                         </button>
                       ) : (
-                        <button onClick={() => handleZoneClick(zone.id)}
-                          className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 hover:border-primary hover:bg-primary/10 transition-all cursor-pointer opacity-0 hover:opacity-100"
-                          title={zone.label} />
+                        <button onClick={() => handleZoneClick(zone.id)} className="relative group cursor-pointer" title={zone.label}>
+                          <div className="w-6 h-6 rounded-full border-2 border-dashed border-gray-300 hover:border-primary hover:bg-primary/10 transition-all" />
+                        </button>
                       )}
                     </div>
                   );
@@ -572,6 +620,66 @@ function InspectionContent() {
                   <span className="text-gray-600">{d.label}</span>
                 </div>
               ))}
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="w-3 h-3 rounded-full bg-success" />
+                <span className="text-gray-600">OK</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="card p-4 sm:p-6 mt-4">
+            <div className="flex items-center gap-2 mb-4">
+              <ClipboardList size={18} className="text-primary" />
+              <h3 className="font-bold text-gray-800">Datos de Inspección</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Kilometraje de entrada</label>
+                <input type="number" value={inspectionData.entry_km} onChange={e => setInspectionData({...inspectionData, entry_km: e.target.value})} className="input-field text-sm" placeholder="km" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Estado de batería</label>
+                <select value={inspectionData.battery_status} onChange={e => setInspectionData({...inspectionData, battery_status: e.target.value})} className="input-field text-sm">
+                  <option value="bueno">Bueno</option><option value="regular">Regular</option><option value="malo">Malo</option><option value="cargar">Necesita carga</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Aceite del motor</label>
+                <select value={inspectionData.oil_level} onChange={e => setInspectionData({...inspectionData, oil_level: e.target.value})} className="input-field text-sm">
+                  <option value="bueno">Bueno</option><option value="regular">Regular</option><option value="bajo">Bajo</option><option value="muy_bajo">Muy bajo</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Refrigerante</label>
+                <select value={inspectionData.coolant_level} onChange={e => setInspectionData({...inspectionData, coolant_level: e.target.value})} className="input-field text-sm">
+                  <option value="bueno">Bueno</option><option value="regular">Regular</option><option value="bajo">Bajo</option><option value="vacio">Vacío</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Líquido de frenos</label>
+                <select value={inspectionData.brake_fluid} onChange={e => setInspectionData({...inspectionData, brake_fluid: e.target.value})} className="input-field text-sm">
+                  <option value="bueno">Bueno</option><option value="regular">Regular</option><option value="bajo">Bajo</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Correas</label>
+                <select value={inspectionData.belt_condition} onChange={e => setInspectionData({...inspectionData, belt_condition: e.target.value})} className="input-field text-sm">
+                  <option value="bueno">Buenas</option><option value="regular">Regulares</option><option value="malo">Desgastadas</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Presión de llantas (DD/ID/DDI/IDI)</label>
+                <div className="grid grid-cols-4 gap-2">
+                  <input type="text" value={inspectionData.tire_pressure_fl} onChange={e => setInspectionData({...inspectionData, tire_pressure_fl: e.target.value})} className="input-field text-sm text-center" placeholder="DD" />
+                  <input type="text" value={inspectionData.tire_pressure_fr} onChange={e => setInspectionData({...inspectionData, tire_pressure_fr: e.target.value})} className="input-field text-sm text-center" placeholder="ID" />
+                  <input type="text" value={inspectionData.tire_pressure_rl} onChange={e => setInspectionData({...inspectionData, tire_pressure_rl: e.target.value})} className="input-field text-sm text-center" placeholder="DDI" />
+                  <input type="text" value={inspectionData.tire_pressure_rr} onChange={e => setInspectionData({...inspectionData, tire_pressure_rr: e.target.value})} className="input-field text-sm text-center" placeholder="IDI" />
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Observaciones generales</label>
+                <textarea value={inspectionData.general_notes} onChange={e => setInspectionData({...inspectionData, general_notes: e.target.value})} className="input-field text-sm" rows={2} placeholder="Notas adicionales..." />
+              </div>
             </div>
           </div>
         </div>
@@ -584,6 +692,14 @@ function InspectionContent() {
                 <button onClick={() => { setShowForm(false); setSelectedZone(null); }}><X size={20} /></button>
               </div>
               <div className="space-y-3">
+                <button onClick={() => selectedZone && handleMarkOK(selectedZone)} className="w-full py-3 bg-success/10 text-success rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-success/20 transition border border-success/30">
+                  <ShieldCheck size={18} /> Todo está bien
+                </button>
+                <div className="flex items-center gap-2 my-2">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-xs text-gray-400">o reportar daño</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de daño</label>
                   <select value={formData.damage_type} onChange={e => setFormData({...formData, damage_type: e.target.value})} className="input-field">
@@ -610,14 +726,14 @@ function InspectionContent() {
                   <input type="text" value={formData.inspected_by} onChange={e => setFormData({...formData, inspected_by: e.target.value})} className="input-field" placeholder="Nombre" />
                 </div>
                 <button onClick={handleSave} disabled={saving} className="btn-primary w-full flex items-center justify-center gap-2">
-                  {saving ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle size={16} />} Guardar
+                  {saving ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle size={16} />} Registrar Daño
                 </button>
               </div>
             </div>
           )}
 
           <div className="card p-4 sm:p-6">
-            <h3 className="font-bold text-gray-800 mb-3">Daños en vista: {VIEWS.find(v => v.id === activeView)?.label}</h3>
+            <h3 className="font-bold text-gray-800 mb-3">Vista: {VIEWS.find(v => v.id === activeView)?.label}</h3>
             {viewInspections.length === 0 ? (
               <p className="text-sm text-gray-500">Sin daños en esta vista.</p>
             ) : (
@@ -636,24 +752,6 @@ function InspectionContent() {
               </div>
             )}
           </div>
-
-          {inspections.length > 0 && (
-            <div className="card p-4 sm:p-6">
-              <h3 className="font-bold text-gray-800 mb-3">Resumen total ({inspections.length} daños)</h3>
-              <div className="flex flex-wrap gap-2">
-                {DAMAGE_TYPES.map(d => {
-                  const count = inspections.filter(i => i.damage_type === d.value).length;
-                  if (count === 0) return null;
-                  return (
-                    <span key={d.value} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: d.color + '20', color: d.color }}>
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
-                      {d.label}: {count}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           <Link href={`/workshop/${id}`} className="btn-primary w-full text-center">Volver a la Orden</Link>
         </div>

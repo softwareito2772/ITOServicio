@@ -275,6 +275,7 @@ export const workshopAPI = {
   createInspection: (data: any) => api.post('/workshop/inspections', data),
   addInspectionImage: (inspectionId: number, data: any) => api.post(`/workshop/inspections/${inspectionId}/images`, data),
   deleteInspection: (id: number) => api.delete(`/workshop/inspections/${id}`),
+  getInspectionPDF: (orderId: number) => `${API_URL}/workshop/inspections/${orderId}/pdf`,
   getOrderImages: (orderId: number) => api.get(`/workshop/orders/${orderId}/images`),
   addOrderImage: (orderId: number, data: any) => api.post(`/workshop/orders/${orderId}/images`, data),
   deleteOrderImage: (imageId: number) => api.delete(`/workshop/orders/images/${imageId}`),
