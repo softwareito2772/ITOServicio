@@ -874,6 +874,7 @@ class WorkshopInvoiceCreate(BaseModel):
     discount: float = 0
     total: float = 0
     notes: Optional[str] = None
+    work_summary: Optional[str] = None
 
 
 class WorkshopInvoiceUpdate(BaseModel):
@@ -898,6 +899,7 @@ class WorkshopInvoiceResponse(BaseModel):
     payment_method: Optional[str] = None
     payment_date: Optional[datetime] = None
     notes: Optional[str] = None
+    work_summary: Optional[str] = None
     company_id: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

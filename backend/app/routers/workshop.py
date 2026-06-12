@@ -970,6 +970,7 @@ async def update_workshop_order(
     if not order:
         raise HTTPException(status_code=404, detail="Orden no encontrada")
 
+    new_status = None
     for key, value in data.model_dump(exclude_unset=True).items():
         if value is not None:
             if key in ("estimated_completion",) and isinstance(value, str):
@@ -980,7 +981,56 @@ async def update_workshop_order(
                 order.exit_datetime = datetime.now()
             elif key == "status" and value == "delivered":
                 order.picked_up_datetime = datetime.now()
+                new_status = "delivered"
             setattr(order, key, value)
+
+    total_parts = sum(p.unit_price * p.quantity for p in order.parts_used)
+    order.cost_parts = total_parts
+    order.total_cost = (order.cost_labor or 0) + total_parts
+
+    if new_status == "delivered":
+        existing = db.query(WorkshopInvoice).filter(WorkshopInvoice.order_id == order.id).first()
+        if not existing:
+            count = db.query(WorkshopInvoice).filter(WorkshopInvoice.company_id == current_user.company_id).count()
+            invoice_number = f"FT-{(count + 1):04d}"
+
+            parts_detail = ""
+            for p in order.parts_used:
+                name = p.custom_name or (p.product.name if p.product else f"Inv#{p.workshop_inventory_id}")
+                parts_detail += f"- {name} x{p.quantity}: ${p.unit_price * p.quantity:.2f}\n"
+
+            checklist_detail = ""
+            for c in order.checklist:
+                if c.status != 'na':
+                    checklist_detail += f"- {c.item_name}: {c.status}\n"
+
+            work_summary = f"ORDEN #{order.id}\n"
+            work_summary += f"Vehiculo: {order.vehicle.brand if order.vehicle else ''} {order.vehicle.model if order.vehicle else ''} ({order.vehicle.plate_number if order.vehicle else ''})\n"
+            work_summary += f"Tipo: {order.type}\n"
+            if order.description:
+                work_summary += f"Descripcion: {order.description}\n"
+            if order.diagnosis:
+                work_summary += f"Diagnostico: {order.diagnosis}\n"
+            if order.solution:
+                work_summary += f"Solucion: {order.solution}\n"
+            if checklist_detail:
+                work_summary += f"\nCHECKLIST:\n{checklist_detail}"
+            if parts_detail:
+                work_summary += f"\nPIEZAS UTILIZADAS:\n{parts_detail}"
+
+            invoice = WorkshopInvoice(
+                order_id=order.id,
+                client_id=order.client_id,
+                invoice_number=invoice_number,
+                subtotal=order.total_cost,
+                tax=0,
+                discount=0,
+                total=order.total_cost,
+                status="pending",
+                work_summary=work_summary,
+                company_id=current_user.company_id
+            )
+            db.add(invoice)
 
     db.commit()
     db.refresh(order)
@@ -1041,6 +1091,9 @@ async def add_parts_to_order(
                 unit_price=part.unit_price
             ))
 
+    total_parts = sum(p.unit_price * p.quantity for p in order.parts_used)
+    order.cost_parts = total_parts
+    order.total_cost = (order.cost_labor or 0) + total_parts
     db.commit()
     db.refresh(order)
     return {"message": f"{len(parts)} pieza(s) agregada(s)"}

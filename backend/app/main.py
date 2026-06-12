@@ -14,6 +14,7 @@ def run_migrations():
     cols = [
         ("workshop_parts_used", "workshop_inventory_id", "INTEGER"),
         ("workshop_parts_used", "custom_name", "VARCHAR(255)"),
+        ("workshop_invoices", "work_summary", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, col, ctype in cols:

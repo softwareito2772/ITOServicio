@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Loader2, Search, Trash2, Edit, FileText, DollarSign, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Plus, Loader2, Search, Trash2, Edit, FileText, DollarSign, CheckCircle, Clock, XCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -13,7 +13,7 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Anulada', color: 'bg-danger/20 text-danger', icon: XCircle },
 ];
 
-const PAYMENT_METHODS = ['Efectivo', 'Transferencia', 'Tarjeta', 'Cheque', 'Otro'];
+const PAYMENT_METHODS = ['Efectivo', 'Transferencia', 'Tarjeta', 'Yappy', 'Cheque', 'Otro'];
 
 export default function WorkshopInvoicesPage() {
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -27,6 +27,7 @@ export default function WorkshopInvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [formData, setFormData] = useState({ order_id: 0, subtotal: 0, tax: 0, discount: 0, total: 0, notes: '' });
   const [paymentData, setPaymentData] = useState({ paid_amount: 0, payment_method: 'Efectivo' });
+  const [expandedInvoice, setExpandedInvoice] = useState<number | null>(null);
 
   useEffect(() => { loadData(); }, [statusFilter]);
 
@@ -222,6 +223,14 @@ export default function WorkshopInvoicesPage() {
                   <span>Pagado: {formatCurrency(invoice.paid_amount)}</span>
                   <span>Pendiente: {formatCurrency(invoice.total - invoice.paid_amount)}</span>
                 </div>
+                {invoice.work_summary && (
+                  <button onClick={() => setExpandedInvoice(expandedInvoice === invoice.id ? null : invoice.id)} className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
+                    {expandedInvoice === invoice.id ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Ver detalle del trabajo
+                  </button>
+                )}
+                {expandedInvoice === invoice.id && invoice.work_summary && (
+                  <pre className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600 whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">{invoice.work_summary}</pre>
+                )}
               </div>
               <div className="flex gap-2">
                 {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
