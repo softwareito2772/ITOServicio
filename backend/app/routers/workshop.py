@@ -600,6 +600,13 @@ async def create_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    existing = db.query(WorkshopInvoice).filter(
+        WorkshopInvoice.order_id == data.order_id,
+        WorkshopInvoice.status != 'cancelled'
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"La orden ya tiene la factura {existing.invoice_number}")
+
     count = db.query(WorkshopInvoice).filter(WorkshopInvoice.company_id == current_user.company_id).count()
     invoice_number = f"FT-{(count + 1):04d}"
     invoice = WorkshopInvoice(

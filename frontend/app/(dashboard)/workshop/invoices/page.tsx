@@ -29,6 +29,8 @@ export default function WorkshopInvoicesPage() {
   const [paymentData, setPaymentData] = useState({ paid_amount: 0, payment_method: 'Efectivo' });
   const [expandedInvoice, setExpandedInvoice] = useState<number | null>(null);
 
+  const invoicedOrderIds = invoices.filter((i: any) => i.status !== 'cancelled').map((i: any) => i.order_id);
+
   useEffect(() => { loadData(); }, [statusFilter]);
 
   const loadData = async () => {
@@ -144,7 +146,7 @@ export default function WorkshopInvoicesPage() {
                 setFormData({...formData, order_id: orderId, subtotal: total, total: total});
               }} className="input-field">
                 <option value={0}>Seleccionar orden...</option>
-                {orders.filter((o: any) => o.status !== 'cancelled').map((o: any) => (
+                {orders.filter((o: any) => o.status !== 'cancelled' && !invoicedOrderIds.includes(o.id)).map((o: any) => (
                   <option key={o.id} value={o.id}>#{o.id} - {o.vehicle?.plate_number} ({o.vehicle?.brand}) - {formatCurrency(o.total_cost)}</option>
                 ))}
               </select>
