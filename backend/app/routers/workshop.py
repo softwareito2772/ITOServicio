@@ -23,7 +23,7 @@ from ..schemas import (
     WorkshopInspectionImageCreate, WorkshopInspectionImageResponse,
     WorkshopOrderImageCreate, WorkshopOrderImageResponse,
     WorkshopInventoryCreate, WorkshopInventoryUpdate, WorkshopInventoryResponse,
-    WorkshopInvoiceCreate, WorkshopInvoiceUpdate, WorkshopInvoiceResponse
+    WorkshopInvoiceCreate, WorkshopInvoiceUpdate
 )
 from ..auth import get_current_user
 
@@ -579,7 +579,7 @@ async def search_inventory(
 
 # ==================== WORKSHOP INVOICES (Fase 4) ====================
 
-@router.get("/invoices", response_model=List[WorkshopInvoiceResponse])
+@router.get("/invoices")
 async def get_invoices(
     skip: int = 0, limit: int = 50,
     status: Optional[str] = None,
@@ -591,10 +591,24 @@ async def get_invoices(
         q = q.filter(WorkshopInvoice.company_id == current_user.company_id)
     if status:
         q = q.filter(WorkshopInvoice.status == status)
-    return q.order_by(WorkshopInvoice.created_at.desc()).offset(skip).limit(limit).all()
+    invoices = q.order_by(WorkshopInvoice.created_at.desc()).offset(skip).limit(limit).all()
+    result = []
+    for inv in invoices:
+        result.append({
+            "id": inv.id, "order_id": inv.order_id, "client_id": inv.client_id,
+            "invoice_number": inv.invoice_number, "subtotal": inv.subtotal,
+            "tax": inv.tax, "discount": inv.discount, "total": inv.total,
+            "status": inv.status, "paid_amount": inv.paid_amount,
+            "payment_method": inv.payment_method, "payment_date": inv.payment_date,
+            "notes": inv.notes, "work_summary": getattr(inv, 'work_summary', None),
+            "company_id": inv.company_id,
+            "created_at": str(inv.created_at) if inv.created_at else None,
+            "updated_at": str(inv.updated_at) if inv.updated_at else None,
+        })
+    return result
 
 
-@router.post("/invoices", response_model=WorkshopInvoiceResponse)
+@router.post("/invoices")
 async def create_invoice(
     data: WorkshopInvoiceCreate,
     db: Session = Depends(get_db),
@@ -617,10 +631,27 @@ async def create_invoice(
     db.add(invoice)
     db.commit()
     db.refresh(invoice)
-    return invoice
+    return {
+        "id": invoice.id,
+        "order_id": invoice.order_id,
+        "invoice_number": invoice.invoice_number,
+        "subtotal": invoice.subtotal,
+        "tax": invoice.tax,
+        "discount": invoice.discount,
+        "total": invoice.total,
+        "status": invoice.status,
+        "paid_amount": invoice.paid_amount,
+        "payment_method": invoice.payment_method,
+        "payment_date": invoice.payment_date,
+        "notes": invoice.notes,
+        "work_summary": getattr(invoice, 'work_summary', None),
+        "company_id": invoice.company_id,
+        "created_at": str(invoice.created_at) if invoice.created_at else None,
+        "updated_at": str(invoice.updated_at) if invoice.updated_at else None,
+    }
 
 
-@router.put("/invoices/{invoice_id}", response_model=WorkshopInvoiceResponse)
+@router.put("/invoices/{invoice_id}")
 async def update_invoice(
     invoice_id: int,
     data: WorkshopInvoiceUpdate,
@@ -634,7 +665,12 @@ async def update_invoice(
         setattr(invoice, key, value)
     db.commit()
     db.refresh(invoice)
-    return invoice
+    return {
+        "id": invoice.id, "order_id": invoice.order_id, "invoice_number": invoice.invoice_number,
+        "subtotal": invoice.subtotal, "tax": invoice.tax, "discount": invoice.discount,
+        "total": invoice.total, "status": invoice.status, "paid_amount": invoice.paid_amount,
+        "payment_method": invoice.payment_method, "notes": invoice.notes,
+    }
 
 
 @router.delete("/invoices/{invoice_id}")

@@ -899,12 +899,9 @@ class WorkshopInvoiceResponse(BaseModel):
     payment_method: Optional[str] = None
     payment_date: Optional[datetime] = None
     notes: Optional[str] = None
-    work_summary: Optional[str] = None
     company_id: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    order: Optional[WorkshopOrderResponse] = None
-    client: Optional[ClientResponse] = None
 
     class Config:
         from_attributes = True
