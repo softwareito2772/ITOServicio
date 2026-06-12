@@ -15,6 +15,7 @@ def run_migrations():
         ("workshop_parts_used", "workshop_inventory_id", "INTEGER"),
         ("workshop_parts_used", "custom_name", "VARCHAR(255)"),
         ("workshop_invoices", "work_summary", "TEXT"),
+        ("companies", "is_suspended", "BOOLEAN DEFAULT FALSE"),
     ]
     with engine.connect() as conn:
         for table, col, ctype in cols:
@@ -40,7 +41,7 @@ async def lifespan(app):
 app = FastAPI(
     title=settings.APP_NAME,
     description="API para el sistema de servicios ITO",
-    version="3.1.0",
+    version="3.2.0",
     lifespan=lifespan
 )
 

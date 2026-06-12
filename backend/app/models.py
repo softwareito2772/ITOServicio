@@ -69,6 +69,7 @@ class Company(Base):
     secondary_color = Column(String(7), default="#B4C7E7")
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    is_suspended = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     users = relationship("User", back_populates="company")

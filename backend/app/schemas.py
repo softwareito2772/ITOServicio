@@ -42,6 +42,7 @@ class CompanyResponse(CompanyBase):
     id: int
     logo_url: Optional[str] = None
     is_active: bool
+    is_suspended: bool = False
     created_at: Optional[datetime] = None
 
     class Config:

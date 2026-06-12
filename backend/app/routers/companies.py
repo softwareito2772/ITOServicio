@@ -285,3 +285,18 @@ async def get_company_users(
 ):
     users = db.query(User).filter(User.company_id == company_id).all()
     return users
+
+
+@router.put("/{company_id}/suspend")
+async def toggle_suspend_company(
+    company_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_super_admin)
+):
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    company.is_suspended = not company.is_suspended
+    db.commit()
+    action = "suspendida" if company.is_suspended else "reactivada"
+    return {"message": f"Empresa {action}", "is_suspended": company.is_suspended}

@@ -222,6 +222,7 @@ export const companiesAPI = {
   create: (data: any) => api.post('/companies/', data),
   update: (id: number, data: any) => api.put(`/companies/${id}`, data),
   updateModules: (id: number, modules: string[]) => api.put(`/companies/${id}/modules`, { modules }),
+  toggleSuspend: (id: number) => api.put(`/companies/${id}/suspend`),
   getAvailableModules: () => api.get('/companies/available-modules'),
   getUsers: (id: number) => api.get(`/companies/${id}/users`),
   updateMySettings: (data: any) => api.put('/companies/my/settings', data),

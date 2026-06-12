@@ -97,6 +97,13 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuario inactivo"
         )
+    if user.company_id and _role_str(user) != "super_admin":
+        company = db.query(Company).filter(Company.id == user.company_id).first()
+        if company and company.is_suspended:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tu empresa ha sido suspendida. Contacta al administrador."
+            )
     return user
 
 

@@ -100,7 +100,16 @@ export default function DashboardLayout({
   const [companyModules, setCompanyModules] = useState<string[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const userId = JSON.parse(localStorage.getItem('user') || '{}')?.id;
+      if (userId) {
+        const stored = localStorage.getItem(`dismissed-${userId}`);
+        return stored ? new Set(JSON.parse(stored)) : new Set();
+      }
+    }
+    return new Set();
+  });
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -153,6 +162,13 @@ export default function DashboardLayout({
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const userId = JSON.parse(localStorage.getItem('user') || '{}')?.id;
+    if (userId) {
+      localStorage.setItem(`dismissed-${userId}`, JSON.stringify(Array.from(dismissed)));
+    }
+  }, [dismissed]);
+
   const loadNotifications = async () => {
     try {
       const res = await dashboardAPI.getStats();
@@ -163,6 +179,10 @@ export default function DashboardLayout({
       if (s.pending_repairs > 0) list.push({ id: 'rep', type: 'info', message: `${s.pending_repairs} reparacion(es) pendiente(s)`, link: '/repairs' });
       if (s.inactive_clients_6_months > 0) list.push({ id: 'cli', type: 'danger', message: `${s.inactive_clients_6_months} cliente(s) inactivo(s) +6 meses`, link: '/clients' });
       if (s.active_warranties > 0) list.push({ id: 'warr', type: 'info', message: `${s.active_warranties} garantia(s) activa(s)`, link: '/warranties' });
+      if (s.workshop) {
+        if (s.workshop.pending_pickup > 0) list.push({ id: 'ws_pickup', type: 'warning', message: `${s.workshop.pending_pickup} orden(es) lista(s) para entregar`, link: '/workshop' });
+        if (s.workshop.pending_invoices > 0) list.push({ id: 'ws_inv', type: 'danger', message: `${s.workshop.pending_invoices} factura(s) pendiente(s) de cobro`, link: '/workshop/invoices' });
+      }
       setNotifications(list);
       setDismissed(prev => {
         const next = new Set(prev);
