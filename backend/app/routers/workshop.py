@@ -754,11 +754,15 @@ async def get_daily_report(
         start_dt = datetime.combine(sd, datetime.min.time())
         end_dt = datetime.combine(ed, datetime.max.time())
 
-    completed_in_range = q.filter(
+    finished_orders = q.filter(
         WorkshopOrder.status.in_(["completed", "delivered"]),
-        WorkshopOrder.exit_datetime >= start_dt,
-        WorkshopOrder.exit_datetime <= end_dt,
     ).all()
+
+    completed_in_range = []
+    for o in finished_orders:
+        ref_date = o.exit_datetime or o.picked_up_datetime
+        if ref_date and start_dt <= ref_date <= end_dt:
+            completed_in_range.append(o)
 
     delivered_in_range = [o for o in completed_in_range if o.status == "delivered"]
     completed_not_delivered = [o for o in completed_in_range if o.status == "completed"]
@@ -774,6 +778,7 @@ async def get_daily_report(
     total_revenue = sum(o.total_cost or 0 for o in completed_in_range)
 
     def _order_summary(o):
+        ref = o.exit_datetime or o.picked_up_datetime
         return {
             "id": o.id,
             "vehicle": f"{o.vehicle.brand} {o.vehicle.model}" if o.vehicle else "N/A",
@@ -785,8 +790,8 @@ async def get_daily_report(
             "status": o.status,
             "picked_up_by": o.picked_up_by or "N/A",
             "entry_date": str(o.entry_datetime.date()) if o.entry_datetime else None,
-            "exit_date": str(o.exit_datetime.date()) if o.exit_datetime else None,
-            "days_in_shop": (o.exit_datetime - o.entry_datetime).days if o.exit_datetime and o.entry_datetime else 0,
+            "exit_date": str(ref.date()) if ref else None,
+            "days_in_shop": (ref - o.entry_datetime).days if ref and o.entry_datetime else 0,
         }
 
     return {

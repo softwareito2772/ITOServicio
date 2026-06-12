@@ -139,12 +139,15 @@ async def get_dashboard_stats(
         ).count()
 
         from ..models import WorkshopVehicle
-        avg_days = db.query(func.avg(
-            func.julianday(WorkshopOrder.exit_datetime) - func.julianday(WorkshopOrder.entry_datetime)
-        )).filter(
+        avg_days = 0
+        completed_orders_with_dates = db.query(WorkshopOrder).filter(
             WorkshopOrder.company_id == cid,
-            WorkshopOrder.exit_datetime.isnot(None)
-        ).scalar() or 0
+            WorkshopOrder.exit_datetime.isnot(None),
+            WorkshopOrder.entry_datetime.isnot(None)
+        ).all()
+        if completed_orders_with_dates:
+            total_days = sum((o.exit_datetime - o.entry_datetime).days for o in completed_orders_with_dates)
+            avg_days = round(total_days / len(completed_orders_with_dates), 1)
 
         total_revenue = db.query(func.coalesce(func.sum(WorkshopInvoice.total), 0)).filter(
             WorkshopInvoice.company_id == cid,
