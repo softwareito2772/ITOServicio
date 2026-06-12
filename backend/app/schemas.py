@@ -874,7 +874,6 @@ class WorkshopInvoiceCreate(BaseModel):
     discount: float = 0
     total: float = 0
     notes: Optional[str] = None
-    work_summary: Optional[str] = None
 
 
 class WorkshopInvoiceUpdate(BaseModel):
