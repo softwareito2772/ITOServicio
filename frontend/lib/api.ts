@@ -268,7 +268,17 @@ export const workshopAPI = {
   createChecklistTemplate: (data: any) => api.post('/workshop/checklist-templates', data),
   deleteChecklistTemplate: (id: number) => api.delete(`/workshop/checklist-templates/${id}`),
   addChecklistItems: (orderId: number, items: any[]) => api.post(`/workshop/${orderId}/checklist`, items),
-  getDailyReport: (date?: string) => api.get('/workshop/daily-report' + (date ? `?report_date=${date}` : '')),
+  getDailyReport: (params?: { report_date?: string; start_date?: string; end_date?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.start_date && params?.end_date) {
+      query.set('start_date', params.start_date);
+      query.set('end_date', params.end_date);
+    } else if (params?.report_date) {
+      query.set('report_date', params.report_date);
+    }
+    const qs = query.toString();
+    return api.get('/workshop/daily-report' + (qs ? `?${qs}` : ''));
+  },
   getMechanics: () => api.get('/workshop/mechanics'),
   createMechanic: (data: any) => api.post('/workshop/mechanics', data),
   updateMechanic: (id: number, data: any) => api.put(`/workshop/mechanics/${id}`, data),

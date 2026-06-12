@@ -7,7 +7,7 @@ import {
   Users, Monitor, Package, DollarSign, Wrench, Hammer,
   AlertTriangle, TrendingUp, Clock, Car, CheckCircle, BarChart3,
 } from 'lucide-react';
-import { dashboardAPI } from '@/lib/api';
+import { dashboardAPI, companiesAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -16,13 +16,29 @@ export default function DashboardPage() {
   const [modules, setModules] = useState<string[]>([]);
 
   useEffect(() => {
-    const companyStr = localStorage.getItem('company');
-    if (companyStr) {
-      const company = JSON.parse(companyStr);
-      if (company.modules) setModules(company.modules);
-    }
+    loadModules();
     loadData();
   }, []);
+
+  const loadModules = async () => {
+    try {
+      const res = await companiesAPI.getMyCompany();
+      const mods = res.data.modules || [];
+      setModules(mods);
+      const companyStr = localStorage.getItem('company');
+      if (companyStr) {
+        const company = JSON.parse(companyStr);
+        company.modules = mods;
+        localStorage.setItem('company', JSON.stringify(company));
+      }
+    } catch {
+      const companyStr = localStorage.getItem('company');
+      if (companyStr) {
+        const company = JSON.parse(companyStr);
+        if (company.modules) setModules(company.modules);
+      }
+    }
+  };
 
   const loadData = async () => {
     try {

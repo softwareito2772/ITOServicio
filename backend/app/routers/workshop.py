@@ -732,19 +732,36 @@ async def get_invoice_stats(
 @router.get("/daily-report")
 async def get_daily_report(
     report_date: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     _require_taller_module(db, current_user.company_id)
-    target_date = date.fromisoformat(report_date) if report_date else date.today()
-    start = datetime.combine(target_date, datetime.min.time())
-    end = datetime.combine(target_date, datetime.max.time())
     q = db.query(WorkshopOrder).filter(WorkshopOrder.company_id == current_user.company_id)
 
-    worked_today = q.filter(
-        WorkshopOrder.status == "delivered",
-        func.date(WorkshopOrder.picked_up_datetime) == target_date
+    if start_date and end_date:
+        sd = date.fromisoformat(start_date)
+        ed = date.fromisoformat(end_date)
+        start_dt = datetime.combine(sd, datetime.min.time())
+        end_dt = datetime.combine(ed, datetime.max.time())
+    elif report_date:
+        sd = ed = date.fromisoformat(report_date)
+        start_dt = datetime.combine(sd, datetime.min.time())
+        end_dt = datetime.combine(ed, datetime.max.time())
+    else:
+        sd = ed = date.today()
+        start_dt = datetime.combine(sd, datetime.min.time())
+        end_dt = datetime.combine(ed, datetime.max.time())
+
+    completed_in_range = q.filter(
+        WorkshopOrder.status.in_(["completed", "delivered"]),
+        WorkshopOrder.exit_datetime >= start_dt,
+        WorkshopOrder.exit_datetime <= end_dt,
     ).all()
+
+    delivered_in_range = [o for o in completed_in_range if o.status == "delivered"]
+    completed_not_delivered = [o for o in completed_in_range if o.status == "completed"]
 
     waiting = q.filter(
         WorkshopOrder.status.in_(["in_progress", "waiting_parts", "pending"]),
@@ -754,11 +771,10 @@ async def get_daily_report(
         WorkshopOrder.status == "completed",
     ).all()
 
-    total_revenue = sum(o.total_cost or 0 for o in worked_today)
+    total_revenue = sum(o.total_cost or 0 for o in delivered_in_range)
 
-    return {
-        "date": str(target_date),
-        "worked_today": [{
+    def _order_summary(o):
+        return {
             "id": o.id,
             "vehicle": f"{o.vehicle.brand} {o.vehicle.model}" if o.vehicle else "N/A",
             "plate": o.vehicle.plate_number if o.vehicle else "N/A",
@@ -766,17 +782,23 @@ async def get_daily_report(
             "mechanic": o.mechanic_name or "N/A",
             "type": o.type,
             "total_cost": o.total_cost or 0,
+            "status": o.status,
             "picked_up_by": o.picked_up_by or "N/A",
-            "days_in_shop": (o.picked_up_datetime - o.entry_datetime).days if o.picked_up_datetime and o.entry_datetime else 0,
-        } for o in worked_today],
+            "entry_date": str(o.entry_datetime.date()) if o.entry_datetime else None,
+            "exit_date": str(o.exit_datetime.date()) if o.exit_datetime else None,
+            "days_in_shop": (o.exit_datetime - o.entry_datetime).days if o.exit_datetime and o.entry_datetime else 0,
+        }
+
+    return {
+        "start_date": str(sd),
+        "end_date": str(ed),
+        "worked_today": [_order_summary(o) for o in delivered_in_range],
+        "completed_not_delivered": [_order_summary(o) for o in completed_not_delivered],
         "waiting_count": len(waiting),
-        "ready_not_picked": [{
-            "id": o.id,
-            "vehicle": f"{o.vehicle.brand} {o.vehicle.model}" if o.vehicle else "N/A",
-            "plate": o.vehicle.plate_number if o.vehicle else "N/A",
-            "client": o.client.name if o.client else "N/A",
-        } for o in ready_not_picked],
+        "waiting": [_order_summary(o) for o in waiting],
+        "ready_not_picked": [_order_summary(o) for o in ready_not_picked],
         "total_revenue": total_revenue,
+        "total_worked": len(completed_in_range),
     }
 
 
