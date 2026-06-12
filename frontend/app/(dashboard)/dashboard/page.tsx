@@ -16,14 +16,13 @@ export default function DashboardPage() {
   const [modules, setModules] = useState<string[]>([]);
 
   useEffect(() => {
-    loadModules();
-    loadData();
+    loadAll();
   }, []);
 
-  const loadModules = async () => {
+  const loadAll = async () => {
     try {
-      const res = await companiesAPI.getMyCompany();
-      const mods = res.data.modules || [];
+      const modRes = await companiesAPI.getMyModules();
+      const mods = modRes.data.modules || [];
       setModules(mods);
       const companyStr = localStorage.getItem('company');
       if (companyStr) {
@@ -31,21 +30,20 @@ export default function DashboardPage() {
         company.modules = mods;
         localStorage.setItem('company', JSON.stringify(company));
       }
+      const statsRes = await dashboardAPI.getStats();
+      setStats(statsRes.data);
     } catch {
-      const companyStr = localStorage.getItem('company');
-      if (companyStr) {
-        const company = JSON.parse(companyStr);
-        if (company.modules) setModules(company.modules);
-      }
-    }
-  };
-
-  const loadData = async () => {
-    try {
-      const res = await dashboardAPI.getStats();
-      setStats(res.data);
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
+      try {
+        const companyStr = localStorage.getItem('company');
+        if (companyStr) {
+          const company = JSON.parse(companyStr);
+          if (company.modules) setModules(company.modules);
+        }
+      } catch {}
+      try {
+        const statsRes = await dashboardAPI.getStats();
+        setStats(statsRes.data);
+      } catch {}
     } finally {
       setLoading(false);
     }

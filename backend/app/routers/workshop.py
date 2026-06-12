@@ -771,7 +771,7 @@ async def get_daily_report(
         WorkshopOrder.status == "completed",
     ).all()
 
-    total_revenue = sum(o.total_cost or 0 for o in delivered_in_range)
+    total_revenue = sum(o.total_cost or 0 for o in completed_in_range)
 
     def _order_summary(o):
         return {

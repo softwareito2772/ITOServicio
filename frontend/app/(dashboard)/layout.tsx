@@ -134,7 +134,7 @@ export default function DashboardLayout({
     if (token) {
       const u = userStr ? JSON.parse(userStr) : null;
       if (u && u.company_id && u.role !== 'super_admin') {
-        companiesAPI.getMyCompany().then(res => {
+        companiesAPI.getMyModules().then(res => {
           const data = res.data;
           if (data && data.modules) {
             setCompanyModules(data.modules);

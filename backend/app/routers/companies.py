@@ -5,7 +5,7 @@ import base64
 from ..database import get_db
 from ..models import Company, CompanyModule, User, AVAILABLE_MODULES
 from ..schemas import CompanyCreate, CompanyUpdate, CompanyResponse, CompanyWithModules, CompanyModuleUpdate, UserResponse
-from ..auth import get_current_super_admin, get_current_admin_user, hash_password, get_company_data
+from ..auth import get_current_super_admin, get_current_admin_user, get_current_user, hash_password, get_company_data
 from ..cloudinary_config import upload_image
 
 router = APIRouter()
@@ -58,6 +58,20 @@ async def upload_logo(
     b64 = base64.b64encode(contents).decode("utf-8")
     data_url = f"data:{file.content_type};base64,{b64}"
     return {"url": data_url, "public_id": None}
+
+
+@router.get("/my/modules")
+async def get_my_modules(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if not current_user.company_id:
+        return {"modules": []}
+    modules = [m.module_name for m in db.query(CompanyModule).filter(
+        CompanyModule.company_id == current_user.company_id,
+        CompanyModule.is_enabled == True
+    ).all()]
+    return {"modules": modules}
 
 
 @router.get("/my/company", response_model=CompanyWithModules)
