@@ -7,12 +7,11 @@ import {
   Users, Monitor, Package, DollarSign, Wrench, Hammer,
   AlertTriangle, TrendingUp, Clock, Car, CheckCircle, BarChart3,
 } from 'lucide-react';
-import { dashboardAPI, workshopAPI } from '@/lib/api';
+import { dashboardAPI } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
-  const [workshopStats, setWorkshopStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [modules, setModules] = useState<string[]>([]);
 
@@ -27,17 +26,8 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const promises: Promise<any>[] = [dashboardAPI.getStats()];
-      const companyStr = localStorage.getItem('company');
-      if (companyStr) {
-        const company = JSON.parse(companyStr);
-        if (company.modules?.includes('taller')) {
-          promises.push(workshopAPI.getStats());
-        }
-      }
-      const results = await Promise.all(promises);
-      setStats(results[0].data);
-      if (results[1]) setWorkshopStats(results[1].data);
+      const res = await dashboardAPI.getStats();
+      setStats(res.data);
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
@@ -55,15 +45,15 @@ export default function DashboardPage() {
   }
 
   const hasModule = (mod: string) => modules.includes(mod);
-
+  const ws = stats?.workshop;
   const statCards: any[] = [];
 
-  if (hasModule('taller')) {
+  if (hasModule('taller') && ws) {
     statCards.push(
-      { title: 'Órdenes Activas', value: workshopStats?.active_orders || 0, icon: Car, color: 'bg-primary', href: '/workshop' },
-      { title: 'Listas para Entregar', value: workshopStats?.pending_pickup || 0, icon: CheckCircle, color: 'bg-success', href: '/workshop' },
-      { title: 'Completadas Hoy', value: workshopStats?.completed_today || 0, icon: TrendingUp, color: 'bg-secondary', href: '/workshop/report' },
-      { title: 'Ingresos Totales', value: formatCurrency(workshopStats?.total_revenue || 0), icon: DollarSign, color: 'bg-successDark', href: '/workshop/report' },
+      { title: 'Órdenes Activas', value: ws.active_orders || 0, icon: Car, color: 'bg-primary', href: '/workshop' },
+      { title: 'Listas para Entregar', value: ws.pending_pickup || 0, icon: CheckCircle, color: 'bg-success', href: '/workshop' },
+      { title: 'Completadas Hoy', value: ws.completed_today || 0, icon: TrendingUp, color: 'bg-secondary', href: '/workshop/report' },
+      { title: 'Ingresos Totales', value: formatCurrency(ws.total_revenue || 0), icon: DollarSign, color: 'bg-successDark', href: '/workshop/report' },
     );
   }
 
@@ -105,7 +95,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {hasModule('taller') && workshopStats && (
+      {hasModule('taller') && ws && (
         <div className="card p-4 sm:p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-bold text-gray-800">Resumen del Taller</h2>
@@ -113,25 +103,30 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-primary">{workshopStats.active_orders}</p>
+              <p className="text-2xl font-bold text-primary">{ws.active_orders}</p>
               <p className="text-xs text-gray-500">Activas</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-success">{workshopStats.completed_today}</p>
+              <p className="text-2xl font-bold text-success">{ws.completed_today}</p>
               <p className="text-xs text-gray-500">Completadas hoy</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-warning">{workshopStats.pending_pickup}</p>
+              <p className="text-2xl font-bold text-warning">{ws.pending_pickup}</p>
               <p className="text-xs text-gray-500">Por retirar</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-700">{workshopStats.avg_days_in_shop}</p>
+              <p className="text-2xl font-bold text-gray-700">{ws.avg_days_in_shop}</p>
               <p className="text-xs text-gray-500">Promedio días</p>
             </div>
           </div>
-          {workshopStats.total_revenue > 0 && (
-            <div className="mt-4 p-3 bg-success/10 rounded-lg text-center">
-              <p className="text-sm text-successDark">Ingresos totales del taller: <strong>{formatCurrency(workshopStats.total_revenue)}</strong></p>
+          {ws.pending_invoices > 0 && (
+            <div className="mt-3 p-3 bg-warning/10 rounded-lg text-center">
+              <p className="text-sm text-warningDark">{ws.pending_invoices} facturas pendientes de cobro</p>
+            </div>
+          )}
+          {ws.total_revenue > 0 && (
+            <div className="mt-3 p-3 bg-success/10 rounded-lg text-center">
+              <p className="text-sm text-successDark">Ingresos totales del taller: <strong>{formatCurrency(ws.total_revenue)}</strong></p>
             </div>
           )}
         </div>
@@ -168,7 +163,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {statCards.length === 0 && !workshopStats && (
+      {statCards.length === 0 && (
         <div className="card p-8 text-center">
           <BarChart3 size={48} className="mx-auto text-gray-300 mb-4" />
           <p className="text-gray-500">No hay módulos activos. Ve a Configuración para activar módulos.</p>

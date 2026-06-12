@@ -507,6 +507,7 @@ class DashboardStats(BaseModel):
     pending_repairs: int
     active_warranties: int
     inactive_clients_6_months: int
+    workshop: Optional[dict] = None
 
 
 class ReportFilter(BaseModel):

@@ -27,9 +27,22 @@ from ..schemas import (
     WorkshopInvoiceCreate, WorkshopInvoiceUpdate
 )
 from ..auth import get_current_user
+from ..models import CompanyModule
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _require_taller_module(db: Session, company_id: int):
+    if not company_id:
+        return
+    has = db.query(CompanyModule).filter(
+        CompanyModule.company_id == company_id,
+        CompanyModule.module_name == "taller",
+        CompanyModule.is_enabled == True
+    ).first()
+    if not has:
+        raise HTTPException(status_code=403, detail="Esta empresa no tiene habilitado el módulo de Taller")
 
 
 def _seed_checklist_template(db: Session, vehicle_type: str, company_id: int):
@@ -120,6 +133,7 @@ async def list_workshop_vehicles(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _require_taller_module(db, current_user.company_id)
     query = db.query(WorkshopVehicle).filter(WorkshopVehicle.is_active == True)
     if current_user.company_id:
         query = query.filter(WorkshopVehicle.company_id == current_user.company_id)
@@ -152,6 +166,7 @@ async def create_workshop_vehicle(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _require_taller_module(db, current_user.company_id)
     client = db.query(Client).filter(Client.id == data.client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
@@ -484,6 +499,7 @@ async def get_workshop_inventory(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _require_taller_module(db, current_user.company_id)
     q = db.query(WorkshopInventory)
     if current_user.role not in ['super_admin', 'admin']:
         q = q.filter(WorkshopInventory.company_id == current_user.company_id)
@@ -588,6 +604,7 @@ async def get_invoices(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _require_taller_module(db, current_user.company_id)
     q = db.query(WorkshopInvoice)
     if current_user.role not in ['super_admin', 'admin']:
         q = q.filter(WorkshopInvoice.company_id == current_user.company_id)
@@ -718,22 +735,48 @@ async def get_daily_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if report_date:
-        target = datetime.strptime(report_date, "%Y-%m-%d").date()
-    else:
-        target = date.today()
-    start = datetime.combine(target, datetime.min.time())
-    end = datetime.combine(target, datetime.max.time())
+    _require_taller_module(db, current_user.company_id)
+    target_date = date.fromisoformat(report_date) if report_date else date.today()
+    start = datetime.combine(target_date, datetime.min.time())
+    end = datetime.combine(target_date, datetime.max.time())
     q = db.query(WorkshopOrder).filter(WorkshopOrder.company_id == current_user.company_id)
-    worked_today = q.filter(WorkshopOrder.exit_datetime.between(start, end)).all()
-    waiting = q.filter(WorkshopOrder.status.in_(['completed', 'waiting_parts'])).all()
-    ready_not_picked = q.filter(WorkshopOrder.status == 'completed', WorkshopOrder.exit_datetime.is_(None)).all()
+
+    worked_today = q.filter(
+        WorkshopOrder.status == "delivered",
+        func.date(WorkshopOrder.picked_up_datetime) == target_date
+    ).all()
+
+    waiting = q.filter(
+        WorkshopOrder.status.in_(["in_progress", "waiting_parts", "pending"]),
+    ).all()
+
+    ready_not_picked = q.filter(
+        WorkshopOrder.status == "completed",
+    ).all()
+
+    total_revenue = sum(o.total_cost or 0 for o in worked_today)
+
     return {
-        "date": target.isoformat(),
-        "worked_today": [{"id": o.id, "vehicle": f"{o.vehicle.brand} {o.vehicle.plate_number}" if o.vehicle else "N/A", "total_cost": o.total_cost} for o in worked_today],
+        "date": str(target_date),
+        "worked_today": [{
+            "id": o.id,
+            "vehicle": f"{o.vehicle.brand} {o.vehicle.model}" if o.vehicle else "N/A",
+            "plate": o.vehicle.plate_number if o.vehicle else "N/A",
+            "client": o.client.name if o.client else "N/A",
+            "mechanic": o.mechanic_name or "N/A",
+            "type": o.type,
+            "total_cost": o.total_cost or 0,
+            "picked_up_by": o.picked_up_by or "N/A",
+            "days_in_shop": (o.picked_up_datetime - o.entry_datetime).days if o.picked_up_datetime and o.entry_datetime else 0,
+        } for o in worked_today],
         "waiting_count": len(waiting),
-        "ready_not_picked": [{"id": o.id, "vehicle": f"{o.vehicle.brand} {o.vehicle.plate_number}" if o.vehicle else "N/A"} for o in ready_not_picked],
-        "worked_revenue": sum(o.total_cost or 0 for o in worked_today)
+        "ready_not_picked": [{
+            "id": o.id,
+            "vehicle": f"{o.vehicle.brand} {o.vehicle.model}" if o.vehicle else "N/A",
+            "plate": o.vehicle.plate_number if o.vehicle else "N/A",
+            "client": o.client.name if o.client else "N/A",
+        } for o in ready_not_picked],
+        "total_revenue": total_revenue,
     }
 
 
@@ -746,6 +789,7 @@ async def get_workshop_orders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _require_taller_module(db, current_user.company_id)
     query = db.query(WorkshopOrder)
     if current_user.company_id:
         query = query.filter(WorkshopOrder.company_id == current_user.company_id)
@@ -827,6 +871,7 @@ async def get_workshop_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _require_taller_module(db, current_user.company_id)
     base = db.query(WorkshopOrder)
     if current_user.company_id:
         base = base.filter(WorkshopOrder.company_id == current_user.company_id)
@@ -901,6 +946,7 @@ async def create_workshop_order(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    _require_taller_module(db, current_user.company_id)
     vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == data.vehicle_id).first()
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado")
