@@ -111,10 +111,19 @@ class TokenData(BaseModel):
 
 
 class ClientBase(BaseModel):
+    client_type: str = "natural"
     name: str
+    last_name: Optional[str] = None
+    cedula: Optional[str] = None
     phone: str
     email: Optional[str] = None
     address: Optional[str] = None
+    company_name: Optional[str] = None
+    ruc: Optional[str] = None
+    dv: Optional[str] = None
+    province: Optional[str] = None
+    district: Optional[str] = None
+    corregimiento: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -123,10 +132,19 @@ class ClientCreate(ClientBase):
 
 
 class ClientUpdate(BaseModel):
+    client_type: Optional[str] = None
     name: Optional[str] = None
+    last_name: Optional[str] = None
+    cedula: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None
+    company_name: Optional[str] = None
+    ruc: Optional[str] = None
+    dv: Optional[str] = None
+    province: Optional[str] = None
+    district: Optional[str] = None
+    corregimiento: Optional[str] = None
     notes: Optional[str] = None
     is_active: Optional[bool] = None
 

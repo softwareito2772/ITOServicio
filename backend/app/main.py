@@ -16,6 +16,15 @@ def run_migrations():
         ("workshop_parts_used", "custom_name", "VARCHAR(255)"),
         ("workshop_invoices", "work_summary", "TEXT"),
         ("companies", "is_suspended", "BOOLEAN DEFAULT FALSE"),
+        ("clients", "client_type", "VARCHAR(20) DEFAULT 'natural'"),
+        ("clients", "last_name", "VARCHAR(255)"),
+        ("clients", "cedula", "VARCHAR(20)"),
+        ("clients", "company_name", "VARCHAR(255)"),
+        ("clients", "ruc", "VARCHAR(20)"),
+        ("clients", "dv", "VARCHAR(5)"),
+        ("clients", "province", "VARCHAR(100)"),
+        ("clients", "district", "VARCHAR(100)"),
+        ("clients", "corregimiento", "VARCHAR(100)"),
     ]
     alter_cols = [
         ("products", "image_url", "TEXT"),
