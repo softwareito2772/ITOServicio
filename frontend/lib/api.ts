@@ -105,7 +105,9 @@ export const productsAPI = {
   uploadImage: (id: number, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post(`/products/${id}/upload-image`, formData);
+    return api.post(`/products/${id}/upload-image`, formData, {
+      headers: { 'Content-Type': undefined },
+    });
   },
 };
 
@@ -228,12 +230,16 @@ export const companiesAPI = {
   uploadLogo: (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
-    return api.post('/companies/upload-logo', fd);
+    return api.post('/companies/upload-logo', fd, {
+      headers: { 'Content-Type': undefined },
+    });
   },
   uploadMyLogo: (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
-    return api.post('/companies/my/upload-logo', fd);
+    return api.post('/companies/my/upload-logo', fd, {
+      headers: { 'Content-Type': undefined },
+    });
   },
 };
 
