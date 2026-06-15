@@ -62,6 +62,34 @@ export default function ProductsPage() {
     }
   };
 
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      if (file.size < 200000) { resolve(file); return; }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX = 800;
+          let w = img.width, h = img.height;
+          if (w > MAX) { h = (MAX / w) * h; w = MAX; }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+            } else {
+              resolve(file);
+            }
+          }, 'image/jpeg', 0.7);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -86,16 +114,17 @@ export default function ProductsPage() {
     };
 
     try {
+      const uploadFile = imageFile ? await compressImage(imageFile) : null;
       if (editingProduct) {
         await productsAPI.update(editingProduct.id, payload);
-        if (imageFile) {
-          await productsAPI.uploadImage(editingProduct.id, imageFile);
+        if (uploadFile) {
+          await productsAPI.uploadImage(editingProduct.id, uploadFile);
         }
         toast.success('Producto actualizado');
       } else {
         const res = await productsAPI.create(payload);
-        if (imageFile && res.data?.id) {
-          await productsAPI.uploadImage(res.data.id, imageFile);
+        if (uploadFile && res.data?.id) {
+          await productsAPI.uploadImage(res.data.id, uploadFile);
         }
         toast.success('Producto creado');
       }

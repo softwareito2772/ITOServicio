@@ -17,6 +17,9 @@ def run_migrations():
         ("workshop_invoices", "work_summary", "TEXT"),
         ("companies", "is_suspended", "BOOLEAN DEFAULT FALSE"),
     ]
+    alter_cols = [
+        ("products", "image_url", "TEXT"),
+    ]
     with engine.connect() as conn:
         for table, col, ctype in cols:
             try:
@@ -31,6 +34,13 @@ def run_migrations():
                     logger.info(f"Migration: {table}.{col} already exists")
             except Exception as e:
                 logger.error(f"Migration error {table}.{col}: {e}")
+        for table, col, ctype in alter_cols:
+            try:
+                conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {col} TYPE {ctype}"))
+                conn.commit()
+                logger.info(f"Migration: altered {table}.{col} to {ctype}")
+            except Exception as e:
+                logger.info(f"Migration: {table}.{col} alter skipped: {e}")
 
 @asynccontextmanager
 async def lifespan(app):

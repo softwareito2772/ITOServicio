@@ -150,7 +150,7 @@ class Product(Base):
     stock = Column(Integer, default=0)
     stock_min = Column(Integer, default=5)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
-    image_url = Column(String(500), nullable=True)
+    image_url = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
