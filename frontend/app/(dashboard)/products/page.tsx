@@ -76,21 +76,24 @@ export default function ProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key === 'image_url') return;
-      if (value) data.append(key, value);
-    });
+    const payload: any = {
+      name: formData.name,
+      description: formData.description || undefined,
+      price: parseFloat(formData.price) || 0,
+      stock: parseInt(formData.stock) || 0,
+      stock_min: parseInt(formData.stock_min) || 5,
+      category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
+    };
 
     try {
       if (editingProduct) {
-        await productsAPI.update(editingProduct.id, data);
+        await productsAPI.update(editingProduct.id, payload);
         if (imageFile) {
           await productsAPI.uploadImage(editingProduct.id, imageFile);
         }
         toast.success('Producto actualizado');
       } else {
-        const res = await productsAPI.create(data);
+        const res = await productsAPI.create(payload);
         if (imageFile && res.data?.id) {
           await productsAPI.uploadImage(res.data.id, imageFile);
         }

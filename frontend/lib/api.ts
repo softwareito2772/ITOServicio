@@ -99,8 +99,8 @@ export const productsAPI = {
   },
   getLowStock: () => api.get('/products/low-stock'),
   getById: (id: number) => api.get(`/products/${id}`),
-  create: (data: FormData) => api.post('/products', data),
-  update: (id: number, data: FormData) => api.put(`/products/${id}`, data),
+  create: (data: any) => api.post('/products', data),
+  update: (id: number, data: any) => api.put(`/products/${id}`, data),
   delete: (id: number) => api.delete(`/products/${id}`),
   uploadImage: (id: number, file: File) => {
     const formData = new FormData();
