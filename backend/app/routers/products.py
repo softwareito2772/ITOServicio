@@ -138,4 +138,12 @@ async def upload_product_image(
         db.commit()
         return {"url": result["url"]}
     
+    if file.content_type:
+        import base64
+        b64 = base64.b64encode(contents).decode("utf-8")
+        data_url = f"data:{file.content_type};base64,{b64}"
+        product.image_url = data_url
+        db.commit()
+        return {"url": data_url}
+    
     return {"error": "No se pudo subir la imagen"}

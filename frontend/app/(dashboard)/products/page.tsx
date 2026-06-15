@@ -32,6 +32,7 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -64,6 +65,7 @@ export default function ProductsPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -76,15 +78,22 @@ export default function ProductsPage() {
     e.preventDefault();
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
+      if (key === 'image_url') return;
       if (value) data.append(key, value);
     });
 
     try {
       if (editingProduct) {
         await productsAPI.update(editingProduct.id, data);
+        if (imageFile) {
+          await productsAPI.uploadImage(editingProduct.id, imageFile);
+        }
         toast.success('Producto actualizado');
       } else {
-        await productsAPI.create(data);
+        const res = await productsAPI.create(data);
+        if (imageFile && res.data?.id) {
+          await productsAPI.uploadImage(res.data.id, imageFile);
+        }
         toast.success('Producto creado');
       }
       setShowModal(false);
@@ -132,6 +141,7 @@ export default function ProductsPage() {
     setEditingProduct(null);
     setFormData({ name: '', description: '', price: '', stock: '0', stock_min: '5', category_id: '', image_url: '' });
     setImagePreview(null);
+    setImageFile(null);
   };
 
   const getStockBadge = (product: Product) => {
