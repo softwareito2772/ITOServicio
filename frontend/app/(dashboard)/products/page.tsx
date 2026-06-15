@@ -103,13 +103,15 @@ export default function ProductsPage() {
       resetForm();
       loadData();
     } catch (error: any) {
+      console.error('Product save error:', error);
+      console.error('Error response:', error.response?.data);
       const detail = error.response?.data?.detail;
       if (Array.isArray(detail)) {
         detail.forEach((d: any) => toast.error(`${d.loc?.slice(-1)}: ${d.msg}`));
       } else if (typeof detail === 'string') {
         toast.error(detail);
       } else {
-        toast.error('Error al guardar');
+        toast.error(error.message || 'Error al guardar');
       }
     }
   };

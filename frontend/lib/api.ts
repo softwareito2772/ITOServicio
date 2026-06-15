@@ -105,9 +105,7 @@ export const productsAPI = {
   uploadImage: (id: number, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post(`/products/${id}/upload-image`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return api.post(`/products/${id}/upload-image`, formData);
   },
 };
 
@@ -230,12 +228,12 @@ export const companiesAPI = {
   uploadLogo: (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
-    return api.post('/companies/upload-logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return api.post('/companies/upload-logo', fd);
   },
   uploadMyLogo: (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
-    return api.post('/companies/my/upload-logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return api.post('/companies/my/upload-logo', fd);
   },
 };
 
