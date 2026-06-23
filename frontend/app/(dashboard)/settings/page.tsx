@@ -297,10 +297,10 @@ export default function SettingsPage() {
 
           <div className="mt-6 pt-6 border-t border-gray-200">
             <h3 className="font-semibold text-gray-800 mb-3">Módulos habilitados</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 mb-4">
               {ALL_MODULES.map(mod => (
                 <button key={mod} type="button" onClick={() => toggleModule(mod)}
-                  className={`p-2 rounded-lg text-sm border transition-all ${
+                  className={`p-2 rounded-lg text-xs sm:text-sm border transition-all ${
                     companyModules.includes(mod)
                       ? 'bg-primary text-white border-primary'
                       : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-primary'
@@ -319,11 +319,11 @@ export default function SettingsPage() {
 
       {isAdmin && (
         <div id="users" className="card">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2"><Shield size={20} /> Gestión de Usuarios</h2>
             <button onClick={() => { resetForm(); setShowUserModal(true); }} className="btn-primary flex items-center gap-2"><Plus size={18} /> Nuevo Usuario</button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead><tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4">Nombre</th><th className="text-left py-3 px-4">Email</th><th className="text-left py-3 px-4">Rol</th><th className="text-left py-3 px-4">Estado</th><th className="text-right py-3 px-4">Acciones</th>
@@ -340,6 +340,26 @@ export default function SettingsPage() {
                 </tr>
               ))}</tbody>
             </table>
+          </div>
+          <div className="sm:hidden space-y-3">
+            {allUsers.map(u => (
+              <div key={u.id} className="border border-gray-200 rounded-lg p-3">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="font-medium text-gray-800">{u.name}</p>
+                    <p className="text-sm text-gray-500">{u.email}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => openEditUser(u)} className="p-2 text-primary hover:bg-primary/10 rounded-lg"><Edit size={16} /></button>
+                    <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-danger hover:bg-danger/10 rounded-lg"><Trash2 size={16} /></button>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-primary/20 text-primaryDark' : 'bg-gray-100 text-gray-600'}`}>{u.role}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.is_active ? 'bg-success/20 text-successDark' : 'bg-danger/20 text-dangerDark'}`}>{u.is_active ? 'Activo' : 'Inactivo'}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
