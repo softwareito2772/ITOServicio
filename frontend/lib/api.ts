@@ -3,6 +3,9 @@ import axios from 'axios';
 const API_URL = typeof window !== 'undefined'
   ? (process.env.NEXT_PUBLIC_API_URL || `http://${window.location.hostname}:8000/api`)
   : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api');
+// When deployed on Vercel, set NEXT_PUBLIC_API_URL in Vercel env vars
+// to your ngrok URL (e.g. https://abc123.ngrok-free.app/api)
+// Locally, it auto-detects localhost:8000
 
 const api = axios.create({
   baseURL: API_URL,

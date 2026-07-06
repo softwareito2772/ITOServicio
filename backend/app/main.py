@@ -10,6 +10,17 @@ from .routers import auth, users, clients, categories, products, inventory, sale
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def _column_exists(conn, table, col):
+    dialect = engine.dialect.name
+    if dialect == "sqlite":
+        result = conn.execute(text(f"PRAGMA table_info({table})"))
+        return any(row[1] == col for row in result.fetchall())
+    else:
+        result = conn.execute(text(
+            f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}' AND column_name='{col}'"
+        ))
+        return result.fetchone() is not None
+
 def run_migrations():
     cols = [
         ("workshop_parts_used", "workshop_inventory_id", "INTEGER"),
@@ -26,30 +37,17 @@ def run_migrations():
         ("clients", "district", "VARCHAR(100)"),
         ("clients", "corregimiento", "VARCHAR(100)"),
     ]
-    alter_cols = [
-        ("products", "image_url", "TEXT"),
-    ]
     with engine.connect() as conn:
         for table, col, ctype in cols:
             try:
-                result = conn.execute(text(
-                    f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}' AND column_name='{col}'"
-                ))
-                if not result.fetchone():
+                if not _column_exists(conn, table, col):
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ctype}"))
                     conn.commit()
                     logger.info(f"Migration: added {table}.{col}")
                 else:
                     logger.info(f"Migration: {table}.{col} already exists")
             except Exception as e:
-                logger.error(f"Migration error {table}.{col}: {e}")
-        for table, col, ctype in alter_cols:
-            try:
-                conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {col} TYPE {ctype}"))
-                conn.commit()
-                logger.info(f"Migration: altered {table}.{col} to {ctype}")
-            except Exception as e:
-                logger.info(f"Migration: {table}.{col} alter skipped: {e}")
+                logger.info(f"Migration skip {table}.{col}: {e}")
 
 @asynccontextmanager
 async def lifespan(app):
