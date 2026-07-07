@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, User, Trash2, Plus, Edit, Shield, Sun, Moon, Palette, Check, Building2 } from 'lucide-react';
+import { Loader2, User, Trash2, Plus, Edit, Shield, Sun, Moon, Palette, Check, Building2, Key } from 'lucide-react';
 import { authAPI, usersAPI, companiesAPI } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -34,6 +34,8 @@ export default function SettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editUser, setEditUser] = useState<AllUser | null>(null);
+  const [showResetPw, setShowResetPw] = useState<AllUser | null>(null);
+  const [newPassword, setNewPassword] = useState('');
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'user' });
   const [currentTheme, setCurrentTheme] = useState('theme-light');
   const [companyData, setCompanyData] = useState({
@@ -60,8 +62,8 @@ export default function SettingsPage() {
       if (userStr) {
         const u = JSON.parse(userStr);
         setUser(u);
-        setIsAdmin(u.role === 'admin');
-        if (u.role === 'admin') {
+        setIsAdmin(u.role === 'admin' || u.role === 'super_admin' || u.role === 'SUPER_ADMIN');
+        if (u.role === 'admin' || u.role === 'super_admin' || u.role === 'SUPER_ADMIN') {
           const res = await usersAPI.getAll();
           setAllUsers(res.data);
           if (u.company_id) {
@@ -190,6 +192,18 @@ export default function SettingsPage() {
       } else {
         toast.error('Error');
       }
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!showResetPw || !newPassword) return;
+    try {
+      await usersAPI.update(showResetPw.id, { password: newPassword });
+      toast.success(`Contraseña de ${showResetPw.email} actualizada`);
+      setShowResetPw(null);
+      setNewPassword('');
+    } catch (error: any) {
+      toast.error('Error al actualizar contraseña');
     }
   };
 
@@ -334,6 +348,9 @@ export default function SettingsPage() {
                   <td className="py-3 px-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-primary/20 text-primaryDark' : 'bg-gray-100 text-gray-600'}`}>{u.role}</span></td>
                   <td className="py-3 px-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${u.is_active ? 'bg-success/20 text-successDark' : 'bg-danger/20 text-dangerDark'}`}>{u.is_active ? 'Activo' : 'Inactivo'}</span></td>
                   <td className="py-3 px-4"><div className="flex justify-end gap-2">
+                    {isAdmin && (
+                      <button onClick={() => { setShowResetPw(u); setNewPassword(''); }} className="p-2 text-warning hover:bg-warning/10 rounded-lg" title="Cambiar contraseña"><Key size={18} /></button>
+                    )}
                     <button onClick={() => openEditUser(u)} className="p-2 text-primary hover:bg-primary/10 rounded-lg"><Edit size={18} /></button>
                     <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-danger hover:bg-danger/10 rounded-lg"><Trash2 size={18} /></button>
                   </div></td>
@@ -350,6 +367,9 @@ export default function SettingsPage() {
                     <p className="text-sm text-gray-500">{u.email}</p>
                   </div>
                   <div className="flex gap-1">
+                    {isAdmin && (
+                      <button onClick={() => { setShowResetPw(u); setNewPassword(''); }} className="p-2 text-warning hover:bg-warning/10 rounded-lg" title="Cambiar contraseña"><Key size={16} /></button>
+                    )}
                     <button onClick={() => openEditUser(u)} className="p-2 text-primary hover:bg-primary/10 rounded-lg"><Edit size={16} /></button>
                     <button onClick={() => handleDeleteUser(u.id)} className="p-2 text-danger hover:bg-danger/10 rounded-lg"><Trash2 size={16} /></button>
                   </div>
@@ -375,6 +395,27 @@ export default function SettingsPage() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Rol</label><select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="input-field"><option value="user">Usuario</option><option value="admin">Administrador</option></select></div>
               <div className="flex gap-3 pt-4"><button type="button" onClick={() => setShowUserModal(false)} className="btn-outline flex-1">Cancelar</button><button type="submit" className="btn-primary flex-1">{editUser ? 'Actualizar' : 'Crear'}</button></div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showResetPw && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-sm">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold flex items-center gap-2"><Key size={20} /> Cambiar Contraseña</h2>
+              <p className="text-sm text-gray-500 mt-1">Usuario: {showResetPw.email}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Contraseña</label>
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="input-field" placeholder="Escribir nueva contraseña" autoFocus />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => { setShowResetPw(null); setNewPassword(''); }} className="btn-outline flex-1">Cancelar</button>
+                <button onClick={handleResetPassword} disabled={!newPassword} className="btn-primary flex-1">Guardar</button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -54,7 +54,7 @@ export const authAPI = {
     api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
   updateMe: (data: { name?: string; email?: string; password?: string }) =>
-    api.put('/auth/me', data),
+    api.put('/auth/me', null, { params: data }),
 };
 
 export const usersAPI = {
@@ -63,7 +63,7 @@ export const usersAPI = {
   getById: (id: number) => api.get(`/users/${id}`),
   create: (data: { email: string; password: string; name: string; role: string }) =>
     api.post('/users', data),
-  update: (id: number, data: { name?: string; email?: string; role?: string }) =>
+  update: (id: number, data: { name?: string; email?: string; role?: string; password?: string }) =>
     api.put(`/users/${id}`, data),
   delete: (id: number) => api.delete(`/users/${id}`),
 };
