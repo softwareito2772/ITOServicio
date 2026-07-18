@@ -12,6 +12,7 @@ from ..models import (
     WorkshopChecklistTemplate, WorkshopPartsUsed, WorkshopMechanic,
     WorkshopInspection, WorkshopInspectionImage,
     WorkshopOrderImage, WorkshopInventory, WorkshopInvoice,
+    WorkshopOdometerReading, WorkshopMaintenanceSchedule,
     Client, User, Product, InventoryMovement, Company
 )
 from ..schemas import (
@@ -24,7 +25,9 @@ from ..schemas import (
     WorkshopInspectionImageCreate, WorkshopInspectionImageResponse,
     WorkshopOrderImageCreate, WorkshopOrderImageResponse,
     WorkshopInventoryCreate, WorkshopInventoryUpdate, WorkshopInventoryResponse,
-    WorkshopInvoiceCreate, WorkshopInvoiceUpdate
+    WorkshopInvoiceCreate, WorkshopInvoiceUpdate,
+    WorkshopOdometerReadingCreate, WorkshopOdometerReadingResponse,
+    WorkshopMaintenanceScheduleCreate, WorkshopMaintenanceScheduleUpdate, WorkshopMaintenanceScheduleResponse
 )
 from ..auth import get_current_user
 from ..models import CompanyModule
@@ -953,6 +956,437 @@ async def get_vehicle_history(
         WorkshopOrder.vehicle_id == vehicle_id
     ).order_by(WorkshopOrder.created_at.desc()).all()
     return {"vehicle": vehicle, "orders": orders}
+
+
+# ==================== ODOMETER & MAINTENANCE SCHEDULE ====================
+
+def _calcular_estados(schedule, reading_km, hoy):
+    km_faltantes = (schedule.next_maintenance_km or 0) - reading_km
+    if km_faltantes <= 0:
+        km_status = "rojo"
+    elif km_faltantes <= 1000:
+        km_status = "amarillo"
+    else:
+        km_status = "verde"
+
+    if schedule.last_maintenance_date:
+        meses = (hoy - schedule.last_maintenance_date).days / 30
+    else:
+        meses = 99
+
+    if meses > 3:
+        oil_status = "rojo"
+    elif meses >= 2:
+        oil_status = "amarillo"
+    else:
+        oil_status = "verde"
+
+    return km_status, oil_status, km_faltantes
+
+
+@router.get("/odometer", response_model=List[WorkshopOdometerReadingResponse])
+async def list_odometer_readings(
+    vehicle_id: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _require_taller_module(db, current_user.company_id)
+    q = db.query(WorkshopOdometerReading)
+    if current_user.company_id:
+        q = q.filter(WorkshopOdometerReading.company_id == current_user.company_id)
+    if vehicle_id:
+        q = q.filter(WorkshopOdometerReading.vehicle_id == vehicle_id)
+    return q.order_by(WorkshopOdometerReading.reading_date.desc()).offset(skip).limit(limit).all()
+
+
+@router.post("/odometer", response_model=WorkshopOdometerReadingResponse)
+async def create_odometer_reading(
+    data: WorkshopOdometerReadingCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _require_taller_module(db, current_user.company_id)
+    vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == data.vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+
+    reading = WorkshopOdometerReading(
+        vehicle_id=data.vehicle_id,
+        reading_km=data.reading_km,
+        reading_date=data.reading_date or date.today(),
+        notes=data.notes,
+        created_by=current_user.id,
+        company_id=current_user.company_id
+    )
+    db.add(reading)
+
+    vehicle.mileage = data.reading_km
+
+    schedule = db.query(WorkshopMaintenanceSchedule).filter(
+        WorkshopMaintenanceSchedule.vehicle_id == data.vehicle_id
+    ).first()
+
+    if not schedule:
+        schedule = WorkshopMaintenanceSchedule(
+            vehicle_id=data.vehicle_id,
+            last_maintenance_km=data.reading_km,
+            last_maintenance_date=data.reading_date or date.today(),
+            next_maintenance_km=data.reading_km + 5000,
+            next_maintenance_date=(data.reading_date or date.today()) + timedelta(days=90),
+            company_id=current_user.company_id
+        )
+        db.add(schedule)
+
+    hoy = data.reading_date or date.today()
+    km_status, oil_status, km_faltantes = _calcular_estados(schedule, data.reading_km, hoy)
+    schedule.km_status = km_status
+    schedule.oil_status = oil_status
+
+    db.commit()
+    db.refresh(reading)
+
+    reading.vehicle = vehicle
+    return reading
+
+
+@router.get("/odometer/vehicle/{vehicle_id}", response_model=List[WorkshopOdometerReadingResponse])
+async def get_vehicle_odometer_history(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return db.query(WorkshopOdometerReading).filter(
+        WorkshopOdometerReading.vehicle_id == vehicle_id
+    ).order_by(WorkshopOdometerReading.reading_date.desc()).all()
+
+
+@router.get("/maintenance-schedule", response_model=List[WorkshopMaintenanceScheduleResponse])
+async def list_maintenance_schedules(
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _require_taller_module(db, current_user.company_id)
+    q = db.query(WorkshopMaintenanceSchedule)
+    if current_user.company_id:
+        q = q.filter(WorkshopMaintenanceSchedule.company_id == current_user.company_id)
+
+    schedules = q.all()
+    hoy = date.today()
+    result = []
+    for s in schedules:
+        latest_reading = db.query(WorkshopOdometerReading).filter(
+            WorkshopOdometerReading.vehicle_id == s.vehicle_id
+        ).order_by(WorkshopOdometerReading.reading_date.desc()).first()
+        current_km = latest_reading.reading_km if latest_reading else s.last_maintenance_km
+        km_status, oil_status, km_faltantes = _calcular_estados(s, current_km, hoy)
+        s.km_status = km_status
+        s.oil_status = oil_status
+
+        if status == "verde" and km_status == "verde" and oil_status == "verde":
+            result.append(s)
+        elif status == "amarillo" and (km_status == "amarillo" or oil_status == "amarillo"):
+            result.append(s)
+        elif status == "rojo" and (km_status == "rojo" or oil_status == "rojo"):
+            result.append(s)
+        elif not status:
+            result.append(s)
+
+    db.commit()
+    return result
+
+
+@router.post("/maintenance-schedule", response_model=WorkshopMaintenanceScheduleResponse)
+async def create_maintenance_schedule(
+    data: WorkshopMaintenanceScheduleCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _require_taller_module(db, current_user.company_id)
+    existing = db.query(WorkshopMaintenanceSchedule).filter(
+        WorkshopMaintenanceSchedule.vehicle_id == data.vehicle_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Este vehículo ya tiene un programa de mantenimiento")
+
+    maint_date = data.last_maintenance_date or date.today()
+    schedule = WorkshopMaintenanceSchedule(
+        vehicle_id=data.vehicle_id,
+        last_maintenance_km=data.last_maintenance_km,
+        last_maintenance_date=maint_date,
+        next_maintenance_km=data.last_maintenance_km + 5000,
+        next_maintenance_date=maint_date + timedelta(days=90),
+        km_status="verde",
+        oil_status="verde",
+        company_id=current_user.company_id
+    )
+    db.add(schedule)
+    db.commit()
+    db.refresh(schedule)
+    return schedule
+
+
+@router.put("/maintenance-schedule/{schedule_id}", response_model=WorkshopMaintenanceScheduleResponse)
+async def update_maintenance_schedule(
+    schedule_id: int,
+    data: WorkshopMaintenanceScheduleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    schedule = db.query(WorkshopMaintenanceSchedule).filter(WorkshopMaintenanceSchedule.id == schedule_id).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Programación no encontrada")
+
+    if data.last_maintenance_km is not None:
+        schedule.last_maintenance_km = data.last_maintenance_km
+        schedule.next_maintenance_km = data.last_maintenance_km + 5000
+    if data.last_maintenance_date is not None:
+        schedule.last_maintenance_date = data.last_maintenance_date
+        schedule.next_maintenance_date = data.last_maintenance_date + timedelta(days=90)
+
+    latest_reading = db.query(WorkshopOdometerReading).filter(
+        WorkshopOdometerReading.vehicle_id == schedule.vehicle_id
+    ).order_by(WorkshopOdometerReading.reading_date.desc()).first()
+    current_km = latest_reading.reading_km if latest_reading else schedule.last_maintenance_km
+
+    km_status, oil_status, _ = _calcular_estados(schedule, current_km, date.today())
+    schedule.km_status = km_status
+    schedule.oil_status = oil_status
+
+    db.commit()
+    db.refresh(schedule)
+    return schedule
+
+
+@router.delete("/maintenance-schedule/{schedule_id}")
+async def delete_maintenance_schedule(
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    schedule = db.query(WorkshopMaintenanceSchedule).filter(WorkshopMaintenanceSchedule.id == schedule_id).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Programación no encontrada")
+    db.delete(schedule)
+    db.commit()
+    return {"message": "Programación eliminada"}
+
+
+@router.get("/maintenance-schedule/alerts")
+async def get_maintenance_alerts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _require_taller_module(db, current_user.company_id)
+    q = db.query(WorkshopMaintenanceSchedule)
+    if current_user.company_id:
+        q = q.filter(WorkshopMaintenanceSchedule.company_id == current_user.company_id)
+
+    schedules = q.all()
+    hoy = date.today()
+    alerts = []
+
+    for s in schedules:
+        vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == s.vehicle_id).first()
+        client = db.query(Client).filter(Client.id == vehicle.client_id).first() if vehicle else None
+        latest_reading = db.query(WorkshopOdometerReading).filter(
+            WorkshopOdometerReading.vehicle_id == s.vehicle_id
+        ).order_by(WorkshopOdometerReading.reading_date.desc()).first()
+        current_km = latest_reading.reading_km if latest_reading else s.last_maintenance_km
+        km_status, oil_status, km_faltantes = _calcular_estados(s, current_km, hoy)
+
+        if km_status != "verde" or oil_status != "verde":
+            alerts.append({
+                "schedule_id": s.id,
+                "vehicle_id": s.vehicle_id,
+                "vehicle_plate": vehicle.plate_number if vehicle else "N/A",
+                "vehicle_brand": f"{vehicle.brand or ''} {vehicle.model}" if vehicle else "N/A",
+                "vehicle_type": vehicle.vehicle_type if vehicle else "N/A",
+                "client_name": client.name if client else "N/A",
+                "client_phone": client.phone if client else "N/A",
+                "current_km": current_km,
+                "last_maintenance_km": s.last_maintenance_km,
+                "last_maintenance_date": str(s.last_maintenance_date) if s.last_maintenance_date else None,
+                "next_maintenance_km": s.next_maintenance_km,
+                "next_maintenance_date": str(s.next_maintenance_date) if s.next_maintenance_date else None,
+                "km_status": km_status,
+                "oil_status": oil_status,
+                "km_faltantes": km_faltantes,
+                "months_since_maintenance": round((hoy - s.last_maintenance_date).days / 30, 1) if s.last_maintenance_date else 99,
+            })
+
+    alerts.sort(key=lambda x: (
+        0 if x["km_status"] == "rojo" or x["oil_status"] == "rojo" else 1,
+        -abs(x.get("km_faltantes", 0))
+    ))
+
+    return alerts
+
+
+@router.get("/maintenance-schedule/alerts/pdf")
+async def get_maintenance_alerts_pdf(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    _require_taller_module(db, current_user.company_id)
+
+    q = db.query(WorkshopMaintenanceSchedule)
+    if current_user.company_id:
+        q = q.filter(WorkshopMaintenanceSchedule.company_id == current_user.company_id)
+    schedules = q.all()
+    hoy = date.today()
+
+    company = None
+    if current_user.company_id:
+        company = db.query(Company).filter(Company.id == current_user.company_id).first()
+
+    urgentes = []
+    proximos = []
+
+    for s in schedules:
+        vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == s.vehicle_id).first()
+        client = db.query(Client).filter(Client.id == vehicle.client_id).first() if vehicle else None
+        latest_reading = db.query(WorkshopOdometerReading).filter(
+            WorkshopOdometerReading.vehicle_id == s.vehicle_id
+        ).order_by(WorkshopOdometerReading.reading_date.desc()).first()
+        current_km = latest_reading.reading_km if latest_reading else s.last_maintenance_km
+        km_status, oil_status, km_faltantes = _calcular_estados(s, current_km, hoy)
+
+        entry = {
+            "vehicle": f"{vehicle.brand or ''} {vehicle.model}" if vehicle else "N/A",
+            "plate": vehicle.plate_number if vehicle else "N/A",
+            "client_name": client.name if client else "N/A",
+            "client_phone": client.phone if client else "N/A",
+            "current_km": current_km,
+            "next_km": s.next_maintenance_km,
+            "last_date": str(s.last_maintenance_date) if s.last_maintenance_date else "N/A",
+            "km_faltantes": km_faltantes,
+            "km_status": km_status,
+            "oil_status": oil_status,
+            "months": round((hoy - s.last_maintenance_date).days / 30, 1) if s.last_maintenance_date else 99,
+        }
+
+        if km_status == "rojo" or oil_status == "rojo":
+            urgentes.append(entry)
+        elif km_status == "amarillo" or oil_status == "amarillo":
+            proximos.append(entry)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    title_style = ParagraphStyle('Title3', parent=styles['Heading1'], fontSize=16, spaceAfter=6)
+    subtitle_style = ParagraphStyle('Sub3', parent=styles['Heading2'], fontSize=12, spaceAfter=4, spaceBefore=10)
+    normal_style = ParagraphStyle('Normal3', parent=styles['Normal'], fontSize=9, spaceAfter=2)
+
+    elements.append(Paragraph(company.name if company else "Taller", title_style))
+    elements.append(Paragraph(f"Programación de Mantenimiento - {hoy.strftime('%d/%m/%Y')}", subtitle_style))
+    elements.append(Spacer(1, 8))
+
+    if urgentes:
+        elements.append(Paragraph("URGENTE - MANTENIMIENTO VENCIDO", subtitle_style))
+        data = [['Vehículo', 'Placa', 'Responsable', 'Teléfono', 'Km Actual', 'Km Próx', 'Aceite']]
+        for e in urgentes:
+            data.append([
+                e["vehicle"], e["plate"], e["client_name"], e["client_phone"],
+                f'{e["current_km"]:,}', f'{e["next_km"]:,}',
+                f'{e["months"]} meses'
+            ])
+        t = Table(data, colWidths=[1.3*inch, 0.7*inch, 1.2*inch, 1*inch, 0.8*inch, 0.8*inch, 0.8*inch])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dc2626')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#fef2f2'), colors.white]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        elements.append(t)
+        elements.append(Spacer(1, 12))
+
+    if proximos:
+        elements.append(Paragraph("PRÓXIMOS - REQUIEREN ATENCIÓN", subtitle_style))
+        data = [['Vehículo', 'Placa', 'Responsable', 'Teléfono', 'Km Actual', 'Km Próx', 'Faltan']]
+        for e in proximos:
+            data.append([
+                e["vehicle"], e["plate"], e["client_name"], e["client_phone"],
+                f'{e["current_km"]:,}', f'{e["next_km"]:,}',
+                f'{e["km_faltantes"]:,} km'
+            ])
+        t = Table(data, colWidths=[1.3*inch, 0.7*inch, 1.2*inch, 1*inch, 0.8*inch, 0.8*inch, 0.8*inch])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f59e0b')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#fffbeb'), colors.white]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        elements.append(t)
+
+    if not urgentes and not proximos:
+        elements.append(Paragraph("No hay alertas pendientes. Todos los vehículos están al día.", normal_style))
+
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(f"Generado por {company.name if company else 'ITO Servicios'}", normal_style))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=alertas-mantenimiento-{hoy.strftime('%Y-%m-%d')}.pdf"}
+    )
+
+
+@router.get("/maintenance-schedule/summary")
+async def get_maintenance_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _require_taller_module(db, current_user.company_id)
+    q = db.query(WorkshopMaintenanceSchedule)
+    if current_user.company_id:
+        q = q.filter(WorkshopMaintenanceSchedule.company_id == current_user.company_id)
+
+    schedules = q.all()
+    hoy = date.today()
+    verde = amarillo = rojo = 0
+
+    for s in schedules:
+        latest_reading = db.query(WorkshopOdometerReading).filter(
+            WorkshopOdometerReading.vehicle_id == s.vehicle_id
+        ).order_by(WorkshopOdometerReading.reading_date.desc()).first()
+        current_km = latest_reading.reading_km if latest_reading else s.last_maintenance_km
+        km_status, oil_status, _ = _calcular_estados(s, current_km, hoy)
+        s.km_status = km_status
+        s.oil_status = oil_status
+
+        worst = "verde"
+        if km_status == "rojo" or oil_status == "rojo":
+            worst = "rojo"
+        elif km_status == "amarillo" or oil_status == "amarillo":
+            worst = "amarillo"
+
+        if worst == "rojo":
+            rojo += 1
+        elif worst == "amarillo":
+            amarillo += 1
+        else:
+            verde += 1
+
+    db.commit()
+    return {"verde": verde, "amarillo": amarillo, "rojo": rojo, "total": verde + amarillo + rojo}
 
 
 @router.get("/{order_id}", response_model=WorkshopOrderResponse)

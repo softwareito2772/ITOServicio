@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Loader2, Clock, Wrench, CheckCircle, Package, Car, AlertTriangle, Calendar, DollarSign, BarChart3 } from 'lucide-react';
+import { Plus, Loader2, Clock, Wrench, CheckCircle, Package, Car, AlertTriangle, Calendar, DollarSign, BarChart3, Gauge } from 'lucide-react';
 import Link from 'next/link';
 import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -81,6 +81,12 @@ export default function WorkshopPage() {
           </Link>
           <Link href="/workshop/report" className="btn-outline flex items-center gap-2">
             <BarChart3 size={18} /> Reporte
+          </Link>
+          <Link href="/workshop/odometro" className="btn-outline flex items-center gap-2">
+            <Gauge size={18} /> Odómetro
+          </Link>
+          <Link href="/workshop/alertas" className="btn-outline flex items-center gap-2">
+            <AlertTriangle size={18} /> Alertas
           </Link>
           <Link href="/workshop/new" className="btn-primary flex items-center gap-2">
             <Plus size={20} /> Nueva Orden

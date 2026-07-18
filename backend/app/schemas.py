@@ -924,3 +924,54 @@ class WorkshopInvoiceResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class WorkshopOdometerReadingCreate(BaseModel):
+    vehicle_id: int
+    reading_km: int
+    reading_date: Optional[date] = None
+    notes: Optional[str] = None
+
+
+class WorkshopOdometerReadingResponse(BaseModel):
+    id: int
+    vehicle_id: int
+    reading_km: int
+    reading_date: date
+    notes: Optional[str] = None
+    created_by: Optional[int] = None
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    vehicle: Optional[WorkshopVehicleResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkshopMaintenanceScheduleCreate(BaseModel):
+    vehicle_id: int
+    last_maintenance_km: int = 0
+    last_maintenance_date: Optional[date] = None
+
+
+class WorkshopMaintenanceScheduleUpdate(BaseModel):
+    last_maintenance_km: Optional[int] = None
+    last_maintenance_date: Optional[date] = None
+
+
+class WorkshopMaintenanceScheduleResponse(BaseModel):
+    id: int
+    vehicle_id: int
+    last_maintenance_km: int
+    last_maintenance_date: Optional[date] = None
+    next_maintenance_km: int
+    next_maintenance_date: Optional[date] = None
+    km_status: str
+    oil_status: str
+    order_id: Optional[int] = None
+    company_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    vehicle: Optional[WorkshopVehicleResponse] = None
+
+    class Config:
+        from_attributes = True

@@ -1,0 +1,156 @@
+========================================
+ AGENTS.TXT - CONTEXTO ITO SERVICIOS
+========================================
+Ultima actualizacion: 2026-07-07
+Lee este archivo antes de trabajar en el proyecto.
+
+========================================
+1. QUE ES ESTE PROYECTO
+========================================
+Sistema de gestion multi-tenant para empresas de servicios:
+- ITO Servicios: paneles solares, mantenimiento, reparaciones
+- Etech: taller vehicular, clientes
+
+Stack: Next.js 14 (frontend) + FastAPI (backend) + SQLite (local)
+
+========================================
+2. CREDENCIALES
+========================================
+Super Admin: superadmin@itoservicio.com / $Jafet2213$
+Admin ITO:   admin@ito.com / $Jafet2213$
+Tecnico ITO: tecnico1@ito.com / $Jafet2213$
+Admin Etech: edwin@etech.com / $Jafet2213$
+Todas las passwords son: $Jafet2213$
+(El usuario puede cambiarlas desde Settings)
+
+========================================
+3. URLs IMPORTANTES
+========================================
+Frontend local:  http://localhost:3005
+Backend local:   http://localhost:8000
+Vercel:          https://ito-servicio.vercel.app
+ngrok tunnel:    https://linguist-heroism-scoreless.ngrok-free.dev
+
+========================================
+4. ESTRUCTURA DE ARCHIVOS
+========================================
+C:\Users\ITO\Documents\Servicios_app\
+  backend\
+    servicios.db          <- Base de datos SQLite (IMPORTANTE)
+    app\
+      main.py             <- FastAPI app, migrations, CORS
+      auth.py             <- hash_password, verify_password, JWT
+      models.py           <- SQLAlchemy models (Client con client_type)
+      schemas.py          <- Pydantic schemas
+      routers\
+        auth.py           <- POST /login, GET /me, PUT /me
+        users.py          <- CRUD usuarios, PUT /users/{id} (password reset)
+        companies.py      <- CRUD empresas, modulos
+        clients.py        <- CRUD clientes Natural/Contribuyente
+        workshop.py       <- CRUD taller vehicular
+        ... (12 routers)
+    venv\                 <- Python virtual environment
+  frontend\
+    app\
+      (auth)\login\page.tsx
+      (dashboard)\
+        super-admin\page.tsx
+        settings\page.tsx
+        clientes\page.tsx
+        ...
+    lib\
+      api.ts              <- Axios client, API_URL = NEXT_PUBLIC_API_URL
+    next.config.js
+  backup\
+    backup_sqlite.py      <- Script backup SQLite
+    servicios_*.db        <- Backups en C:\Users\ITO\Documents\Backups_ITO
+  INICIAR_TODO.bat        <- Inicia backend + frontend
+  AUTO_START.bat          <- Auto-start en Windows login
+
+========================================
+5. COMO FUNCIONA EL DEPLOY
+========================================
+- Frontend: Vercel se despliega automaticamente al hacer push a GitHub (main)
+- Backend: Corre localmente en tu PC (port 8000)
+- Vercel se conecta al backend via ngrok (HTTPS tunnel)
+- Variable de entorno critica: NEXT_PUBLIC_API_URL = https://linguist-heroism-scoreless.ngrok-free.dev/api
+- Si cambias algo en frontend, haz push a GitHub y Vercel redeploya solo
+- Si ngrok se reinicia, la URL cambia y hay que actualizar NEXT_PUBLIC_API_URL en Vercel
+
+========================================
+6. BASE DE DATOS
+========================================
+SQLite local: backend/servicios.db
+Backups: C:\Users\ITO\Documents\Backups_ITO\servicios_YYYY-MM-DD_HHMM.db
+Backup automatico: Sabados 3PM (Windows Task Scheduler)
+Para restaurar: copiar servicios.db desde el backup
+
+Tablas principales:
+  users (10 usuarios, 2 empresas)
+  clients (24: 11 ITO + 13 Etech)
+  equipment (13)
+  maintenance (10 registros)
+  repairs (4 registros)
+  products (36)
+  sales (2)
+  companies (2: ITO y Etech)
+  company_modules (modulos por empresa)
+  workshop_vehicles (15, todas Etech)
+  workshop_orders (8)
+  workshop_mechanics (6)
+  workshop_checklist_templates (154)
+  workshop_inspections (47)
+  workshop_parts_used (15)
+  workshop_invoices (1)
+  workshop_inventory (1 item)
+
+========================================
+7. MODULOS POR EMPRESA
+========================================
+ITO: ventas, mantenimiento, reparaciones, equipos, productos,
+     clientes, garantias, reportes, inventario
+Etech: clientes, taller
+
+Modulos disponibles: ventas, mantenimiento, reparaciones, equipos,
+  productos, clientes, garantias, reportes, inventario, taller
+
+========================================
+8. CLAVES TECNICAS
+========================================
+- Multi-tenant: cada usuario tiene company_id, cada endpoint filtra por empresa
+- Roles: SUPER_ADMIN, ADMIN, USER (mayusculas)
+- Passwords: hash con passlib bcrypt
+- JWT: python-jose, expira 24h
+- Clientes: client_type = 'natural' | 'contribuyente' (condicional)
+- Productos: image_url = base64 comprimido (canvas 800px, JPEG 70%)
+- Workshop: pertenece solo a Etech (company_id=2)
+- CORS: allow_origins=["*"] (permite ngrok)
+- ngrok header: 'ngrok-skip-browser-warning': 'true' en api.ts
+
+========================================
+9. TROUBLESHOOTING
+========================================
+Vercel no muestra datos:
+  1. Verificar ngrok corriendo: Get-Process ngrok
+  2. Verificar NEXT_PUBLIC_API_URL en Vercel Settings > Env Vars
+  3. Redeploy sin cache en Vercel
+  4. Abrir en modo incognito
+
+Backend no inicia:
+  1. cd backend && venv\Scripts\activate
+  2. uvicorn app.main:app --reload --port 8000 --host 0.0.0.0
+
+Frontend no inicia:
+  1. cd frontend && npm run dev -- --hostname 0.0.0.0
+
+Login falla en Vercel:
+  1. Verificar que ngrok header esta en api.ts
+  2. Verificar token se guarda en localStorage
+  3. Verificar NEXT_PUBLIC_API_URL no tiene trailing slash
+
+========================================
+10. ARCHIVOS IMPORTANTES NO TOCAR
+========================================
+- backend/servicios.db (base de datos)
+- backup/*.sql y *.db (respaldos)
+- .gitignore (excluye venv, node_modules, servicios.db)

@@ -36,6 +36,7 @@ def run_migrations():
         ("clients", "province", "VARCHAR(100)"),
         ("clients", "district", "VARCHAR(100)"),
         ("clients", "corregimiento", "VARCHAR(100)"),
+        ("workshop_maintenance_schedule", "oil_status", "VARCHAR(10) DEFAULT 'verde'"),
     ]
     with engine.connect() as conn:
         for table, col, ctype in cols:

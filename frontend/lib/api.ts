@@ -322,6 +322,24 @@ export const workshopAPI = {
   updateInvoice: (id: number, data: any) => api.put(`/workshop/invoices/${id}`, data),
   deleteInvoice: (id: number) => api.delete(`/workshop/invoices/${id}`),
   getInvoiceStats: () => api.get('/workshop/invoices/stats'),
+  getOdometerReadings: (vehicleId?: number) => {
+    const params = new URLSearchParams();
+    if (vehicleId) params.append('vehicle_id', vehicleId.toString());
+    const q = params.toString();
+    return api.get('/workshop/odometer' + (q ? `?${q}` : ''));
+  },
+  createOdometerReading: (data: any) => api.post('/workshop/odometer', data),
+  getVehicleOdometerHistory: (vehicleId: number) => api.get(`/workshop/odometer/vehicle/${vehicleId}`),
+  getMaintenanceSchedule: (status?: string) => {
+    const q = status ? `?status=${status}` : '';
+    return api.get('/workshop/maintenance-schedule' + q);
+  },
+  createMaintenanceSchedule: (data: any) => api.post('/workshop/maintenance-schedule', data),
+  updateMaintenanceSchedule: (id: number, data: any) => api.put(`/workshop/maintenance-schedule/${id}`, data),
+  deleteMaintenanceSchedule: (id: number) => api.delete(`/workshop/maintenance-schedule/${id}`),
+  getMaintenanceAlerts: () => api.get('/workshop/maintenance-schedule/alerts'),
+  getMaintenanceAlertsPDF: () => `${API_URL}/workshop/maintenance-schedule/alerts/pdf`,
+  getMaintenanceSummary: () => api.get('/workshop/maintenance-schedule/summary'),
 };
 
 export const reportsAPI = {

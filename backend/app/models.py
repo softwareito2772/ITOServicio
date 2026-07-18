@@ -550,6 +550,41 @@ class WorkshopInventory(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class WorkshopOdometerReading(Base):
+    __tablename__ = "workshop_odometer_readings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_id = Column(Integer, ForeignKey("workshop_vehicles.id"), nullable=False)
+    reading_km = Column(Integer, nullable=False)
+    reading_date = Column(Date, nullable=False, default=date.today)
+    notes = Column(Text, nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    vehicle = relationship("WorkshopVehicle")
+    user = relationship("User")
+
+
+class WorkshopMaintenanceSchedule(Base):
+    __tablename__ = "workshop_maintenance_schedule"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_id = Column(Integer, ForeignKey("workshop_vehicles.id"), nullable=False, unique=True)
+    last_maintenance_km = Column(Integer, default=0)
+    last_maintenance_date = Column(Date, nullable=True)
+    next_maintenance_km = Column(Integer, default=5000)
+    next_maintenance_date = Column(Date, nullable=True)
+    km_status = Column(String(10), default="verde")
+    oil_status = Column(String(10), default="verde")
+    order_id = Column(Integer, ForeignKey("workshop_orders.id"), nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    vehicle = relationship("WorkshopVehicle")
+    order = relationship("WorkshopOrder")
+
+
 class WorkshopInvoice(Base):
     __tablename__ = "workshop_invoices"
 
