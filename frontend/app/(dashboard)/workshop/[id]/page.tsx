@@ -254,7 +254,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       const API_BASE = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || `http://${window.location.hostname}:8000/api`) : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api');
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/workshop/${order.id}/checklist-pdf`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'ngrok-skip-browser-warning': 'true' },
       });
       if (!res.ok) throw new Error('Error al generar PDF');
       const blob = await res.blob();

@@ -41,9 +41,20 @@ export default function AlertsPage() {
   const urgentes = alerts.filter(a => a.km_status === 'rojo' || a.oil_status === 'rojo');
   const proximos = alerts.filter(a => (a.km_status === 'amarillo' || a.oil_status === 'amarillo') && a.km_status !== 'rojo' && a.oil_status !== 'rojo');
 
-  const handleDownloadPDF = () => {
-    const url = workshopAPI.getMaintenanceAlertsPDF();
-    window.open(url, '_blank');
+  const handleDownloadPDF = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const url = workshopAPI.getMaintenanceAlertsPDF();
+      const res = await fetch(url, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'ngrok-skip-browser-warning': 'true' }
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `alertas-mantenimiento.pdf`;
+      a.click();
+    } catch { toast.error('Error al descargar PDF'); }
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-primary" size={32} /></div>;

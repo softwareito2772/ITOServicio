@@ -529,7 +529,7 @@ function InspectionContent() {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(workshopAPI.getInspectionPDF(parseInt(id)), {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}`, 'ngrok-skip-browser-warning': 'true' }
       });
       if (!res.ok) throw new Error();
       const blob = await res.blob();
