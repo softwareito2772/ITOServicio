@@ -287,7 +287,7 @@ export default function OdometerPage() {
                 <button onClick={() => openReadingModal(v)} className="flex-1 text-xs py-2 rounded-lg border border-primary text-primary hover:bg-primary/10 font-medium">
                   Registrar Km
                 </button>
-                <button onClick={() => openHistory(v)} className="flex-1 text-xs py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 font-medium flex items-center justify-center gap-1">
+                <button onClick={() => v && openHistory(v)} className="flex-1 text-xs py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 font-medium flex items-center justify-center gap-1">
                   <Pencil size={12} /> Historial
                 </button>
                 <button onClick={() => { setMaintForm({ vehicle_id: s.vehicle_id, last_maintenance_km: v?.mileage || 0, last_maintenance_date: new Date().toISOString().split('T')[0] }); setSelectedVehicle(v || null); setShowMaintModal(true); }}
