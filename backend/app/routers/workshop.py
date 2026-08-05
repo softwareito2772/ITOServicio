@@ -1092,6 +1092,9 @@ async def update_odometer_reading(
     vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == reading.vehicle_id).first()
     reading.vehicle = vehicle
     return reading
+
+
+@router.get("/odometer/vehicle/{vehicle_id}", response_model=List[WorkshopOdometerReadingResponse])
 async def get_vehicle_odometer_history(
     vehicle_id: int,
     db: Session = Depends(get_db),
