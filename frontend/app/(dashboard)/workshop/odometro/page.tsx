@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Loader2, Gauge, AlertTriangle, CheckCircle, Clock, Search, Car, Calendar, ChevronDown, FileText } from 'lucide-react';
+import { Plus, Loader2, Gauge, AlertTriangle, CheckCircle, Clock, Search, Car, Calendar, ChevronDown, FileText, Pencil } from 'lucide-react';
 import { workshopAPI } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -54,6 +54,11 @@ export default function OdometerPage() {
   const [maintForm, setMaintForm] = useState({ vehicle_id: 0, last_maintenance_km: 0, last_maintenance_date: new Date().toISOString().split('T')[0] });
   const [saving, setSaving] = useState(false);
   const [vehicleSearch, setVehicleSearch] = useState('');
+  const [editReading, setEditReading] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [historyReadings, setHistoryReadings] = useState<any[]>([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyVehicle, setHistoryVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -146,6 +151,32 @@ export default function OdometerPage() {
       loadData();
     } catch (err: any) { toast.error(err.response?.data?.detail || 'Error'); }
     finally { setSaving(false); }
+  };
+
+  const openEditModal = (reading: any) => {
+    setEditReading({ id: reading.id, reading_km: reading.reading_km, reading_date: reading.reading_date, notes: reading.notes || '' });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateReading = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await workshopAPI.updateOdometerReading(editReading.id, { reading_km: editReading.reading_km, reading_date: editReading.reading_date, notes: editReading.notes });
+      toast.success('Lectura corregida');
+      setShowEditModal(false);
+      loadData();
+    } catch (err: any) { toast.error(err.response?.data?.detail || 'Error al editar'); }
+    finally { setSaving(false); }
+  };
+
+  const openHistory = async (v: Vehicle) => {
+    setHistoryVehicle(v);
+    try {
+      const res = await workshopAPI.getVehicleOdometerHistory(v.id);
+      setHistoryReadings(res.data);
+      setShowHistoryModal(true);
+    } catch { toast.error('Error al cargar historial'); }
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-primary" size={32} /></div>;
@@ -255,6 +286,9 @@ export default function OdometerPage() {
               <div className="flex gap-2">
                 <button onClick={() => openReadingModal(v)} className="flex-1 text-xs py-2 rounded-lg border border-primary text-primary hover:bg-primary/10 font-medium">
                   Registrar Km
+                </button>
+                <button onClick={() => openHistory(v)} className="flex-1 text-xs py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 font-medium flex items-center justify-center gap-1">
+                  <Pencil size={12} /> Historial
                 </button>
                 <button onClick={() => { setMaintForm({ vehicle_id: s.vehicle_id, last_maintenance_km: v?.mileage || 0, last_maintenance_date: new Date().toISOString().split('T')[0] }); setSelectedVehicle(v || null); setShowMaintModal(true); }}
                   className="flex-1 text-xs py-2 rounded-lg bg-primary text-white hover:bg-primary/90 font-medium">
@@ -375,6 +409,76 @@ export default function OdometerPage() {
                 <button type="button" onClick={() => setShowMaintModal(false)} className="btn-secondary flex-1">Cancelar</button>
                 <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
                   {saving && <Loader2 className="animate-spin" size={16} />} Registrar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showHistoryModal && historyVehicle && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-[calc(100%-1rem)] sm:w-full sm:max-w-lg max-h-[95vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
+              <h2 className="text-lg font-bold">Historial - {historyVehicle.plate_number}</h2>
+              <button onClick={() => setShowHistoryModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-4">
+              {historyReadings.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No hay lecturas registradas</p>
+              ) : (
+                <div className="space-y-2">
+                  {historyReadings.map(r => (
+                    <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-bold text-gray-800">{r.reading_km?.toLocaleString()} km</p>
+                        <p className="text-xs text-gray-500">{r.reading_date}{r.notes ? ` - ${r.notes}` : ''}</p>
+                      </div>
+                      <button onClick={() => { setEditReading({ id: r.id, reading_km: r.reading_km, reading_date: r.reading_date, notes: r.notes || '' }); setShowHistoryModal(false); setShowEditModal(true); }}
+                        className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg">
+                        <Pencil size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editReading && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl w-[calc(100%-1rem)] sm:w-full sm:max-w-lg max-h-[95vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
+              <h2 className="text-lg font-bold">Corregir Lectura</h2>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <form onSubmit={handleUpdateReading} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Kilometraje *</label>
+                <input type="number" value={editReading.reading_km || ''}
+                  onChange={e => setEditReading({ ...editReading, reading_km: parseInt(e.target.value) || 0 })}
+                  className="input-field" required min={0} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                <input type="date" value={editReading.reading_date}
+                  onChange={e => setEditReading({ ...editReading, reading_date: e.target.value })}
+                  className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+                <textarea value={editReading.notes} onChange={e => setEditReading({ ...editReading, notes: e.target.value })}
+                  className="input-field" rows={2} placeholder="Observaciones..." />
+              </div>
+              <p className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded-lg">
+                Al corregir el kilometraje, el semáforo se recalcula automáticamente.
+              </p>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  {saving && <Loader2 className="animate-spin" size={16} />} Guardar Corrección
                 </button>
               </div>
             </form>

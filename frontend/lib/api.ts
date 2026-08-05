@@ -329,6 +329,7 @@ export const workshopAPI = {
     return api.get('/workshop/odometer' + (q ? `?${q}` : ''));
   },
   createOdometerReading: (data: any) => api.post('/workshop/odometer', data),
+  updateOdometerReading: (id: number, data: any) => api.put(`/workshop/odometer/${id}`, data),
   getVehicleOdometerHistory: (vehicleId: number) => api.get(`/workshop/odometer/vehicle/${vehicleId}`),
   getMaintenanceSchedule: (status?: string) => {
     const q = status ? `?status=${status}` : '';

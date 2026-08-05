@@ -933,6 +933,12 @@ class WorkshopOdometerReadingCreate(BaseModel):
     notes: Optional[str] = None
 
 
+class WorkshopOdometerReadingUpdate(BaseModel):
+    reading_km: Optional[int] = None
+    reading_date: Optional[date] = None
+    notes: Optional[str] = None
+
+
 class WorkshopOdometerReadingResponse(BaseModel):
     id: int
     vehicle_id: int

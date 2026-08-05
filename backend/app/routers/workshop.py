@@ -26,7 +26,7 @@ from ..schemas import (
     WorkshopOrderImageCreate, WorkshopOrderImageResponse,
     WorkshopInventoryCreate, WorkshopInventoryUpdate, WorkshopInventoryResponse,
     WorkshopInvoiceCreate, WorkshopInvoiceUpdate,
-    WorkshopOdometerReadingCreate, WorkshopOdometerReadingResponse,
+    WorkshopOdometerReadingCreate, WorkshopOdometerReadingUpdate, WorkshopOdometerReadingResponse,
     WorkshopMaintenanceScheduleCreate, WorkshopMaintenanceScheduleUpdate, WorkshopMaintenanceScheduleResponse
 )
 from ..auth import get_current_user
@@ -1046,12 +1046,52 @@ async def create_odometer_reading(
 
     db.commit()
     db.refresh(reading)
-
     reading.vehicle = vehicle
     return reading
 
 
-@router.get("/odometer/vehicle/{vehicle_id}", response_model=List[WorkshopOdometerReadingResponse])
+@router.put("/odometer/{reading_id}", response_model=WorkshopOdometerReadingResponse)
+async def update_odometer_reading(
+    reading_id: int,
+    data: WorkshopOdometerReadingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _require_taller_module(db, current_user.company_id)
+    reading = db.query(WorkshopOdometerReading).filter(WorkshopOdometerReading.id == reading_id).first()
+    if not reading:
+        raise HTTPException(status_code=404, detail="Lectura no encontrada")
+    if current_user.company_id and reading.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    if data.reading_km is not None:
+        reading.reading_km = data.reading_km
+        vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == reading.vehicle_id).first()
+        if vehicle:
+            latest = db.query(WorkshopOdometerReading).filter(
+                WorkshopOdometerReading.vehicle_id == reading.vehicle_id
+            ).order_by(WorkshopOdometerReading.reading_km.desc()).first()
+            if latest and latest.id == reading.id:
+                vehicle.mileage = data.reading_km
+
+        schedule = db.query(WorkshopMaintenanceSchedule).filter(
+            WorkshopMaintenanceSchedule.vehicle_id == reading.vehicle_id
+        ).first()
+        if schedule:
+            km_status, oil_status, km_faltantes = _calcular_estados(schedule, data.reading_km, reading.reading_date)
+            schedule.km_status = km_status
+            schedule.oil_status = oil_status
+
+    if data.reading_date is not None:
+        reading.reading_date = data.reading_date
+    if data.notes is not None:
+        reading.notes = data.notes
+
+    db.commit()
+    db.refresh(reading)
+    vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == reading.vehicle_id).first()
+    reading.vehicle = vehicle
+    return reading
 async def get_vehicle_odometer_history(
     vehicle_id: int,
     db: Session = Depends(get_db),
