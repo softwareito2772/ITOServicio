@@ -1151,10 +1151,23 @@ async def create_maintenance_schedule(
     existing = db.query(WorkshopMaintenanceSchedule).filter(
         WorkshopMaintenanceSchedule.vehicle_id == data.vehicle_id
     ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Este vehículo ya tiene un programa de mantenimiento")
 
     maint_date = data.last_maintenance_date or date.today()
+
+    if existing:
+        existing.last_maintenance_km = data.last_maintenance_km
+        existing.last_maintenance_date = maint_date
+        existing.next_maintenance_km = data.last_maintenance_km + 5000
+        existing.next_maintenance_date = maint_date + timedelta(days=90)
+        existing.km_status = "verde"
+        existing.oil_status = "verde"
+        vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == data.vehicle_id).first()
+        if vehicle:
+            vehicle.mileage = data.last_maintenance_km
+        db.commit()
+        db.refresh(existing)
+        return existing
+
     schedule = WorkshopMaintenanceSchedule(
         vehicle_id=data.vehicle_id,
         last_maintenance_km=data.last_maintenance_km,
@@ -1166,6 +1179,9 @@ async def create_maintenance_schedule(
         company_id=current_user.company_id
     )
     db.add(schedule)
+    vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == data.vehicle_id).first()
+    if vehicle:
+        vehicle.mileage = data.last_maintenance_km
     db.commit()
     db.refresh(schedule)
     return schedule
@@ -1185,6 +1201,9 @@ async def update_maintenance_schedule(
     if data.last_maintenance_km is not None:
         schedule.last_maintenance_km = data.last_maintenance_km
         schedule.next_maintenance_km = data.last_maintenance_km + 5000
+        vehicle = db.query(WorkshopVehicle).filter(WorkshopVehicle.id == schedule.vehicle_id).first()
+        if vehicle:
+            vehicle.mileage = data.last_maintenance_km
     if data.last_maintenance_date is not None:
         schedule.last_maintenance_date = data.last_maintenance_date
         schedule.next_maintenance_date = data.last_maintenance_date + timedelta(days=90)
